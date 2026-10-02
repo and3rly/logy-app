@@ -1,0 +1,7 @@
+# Con PHP-FPM, Apache no pasa el token de sesión si no se indica
+CGIPassAuth On
+
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php/$1 [L]

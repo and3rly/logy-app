@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Logy</title>
+    <!-- Tema y color antes de pintar, para evitar un destello (ver src/stores/tema.ts y acento.ts) -->
+    <script>
+      try {
+        var t = localStorage.getItem('logy-tema')
+        if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'oscuro' : 'claro'
+        document.documentElement.setAttribute('data-bs-theme', t === 'oscuro' ? 'dark' : 'light')
+        var v = JSON.parse(localStorage.getItem('logy-acento-vars') || 'null')
+        var m = v && v[t === 'oscuro' ? 'oscuro' : 'claro']
+        for (var k in m) document.documentElement.style.setProperty(k, m[k])
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

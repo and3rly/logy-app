@@ -1,0 +1,67 @@
+# ==========================================================
+# Logy · .gitignore general del repositorio
+# (api/ y app/ conservan además sus propios .gitignore)
+# ==========================================================
+
+# ---------- Sistema operativo ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# ---------- Editores e IDE ----------
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!app/.vscode/extensions.json
+*.sublime-project
+*.sublime-workspace
+/nbproject/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
+
+# ---------- Claude Code y brain (documentación local) ----------
+.claude/
+CLAUDE.md
+brain-logy/
+
+# ---------- Secretos y variables de entorno ----------
+.env
+.env.*
+!.env.example
+# Credenciales de la base de datos (servidor real)
+api/application/config/database.php
+
+# ---------- API (CodeIgniter 3) ----------
+api/vendor/
+api/application/vendor/
+api/application/cache/*
+!api/application/cache/index.html
+api/application/logs/*
+!api/application/logs/index.html
+
+# ---------- App (Vue 3 + Vite) ----------
+node_modules/
+app/dist/
+app/dist-ssr/
+*.local
+.vite/
+
+# ---------- Logs y temporales ----------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tmp
+*.bak
+
+# ---------- Respaldos de base de datos ----------
+# Los scripts versionados viven en bd/ (AAAA-MM-DD_nombre.sql y estructura.sql)
+*.sql.gz
+*.dump

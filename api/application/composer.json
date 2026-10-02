@@ -1,0 +1,22 @@
+{
+	"description": "Dependencias de la API de Logy (CodeIgniter carga application/vendor/autoload.php)",
+	"require": {
+		"php": ">=7.4",
+		"firebase/php-jwt": "~6.10.0",
+		"mpdf/mpdf": "^8.1",
+		"phpoffice/phpspreadsheet": "^1.29"
+	},
+	"config": {
+		"platform": {
+			"php": "7.4.33"
+		},
+		"sort-packages": true,
+		"policy": {
+			"advisories": {
+				"ignore-id": {
+					"PKSA-y2cr-5h3j-g3ys": "CVE-2025-45769 (php-jwt < 7): acepta claves HMAC cortas. La 7.x exige PHP 8; con PHP 7.4 se usa la 6.x y la librería Token valida que encryption_key tenga al menos 32 bytes, igual que la 7.0."
+				}
+			}
+		}
+	}
+}
