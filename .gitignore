@@ -29,6 +29,8 @@ $RECYCLE.BIN/
 .claude/
 CLAUDE.md
 brain-logy/
+# Manual de usuario (Markdown, capturas y Word)
+manual/
 
 # ---------- Secretos y variables de entorno ----------
 .env
