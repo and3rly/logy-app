@@ -146,82 +146,55 @@
 			</button>
 		</PageHeader>
 
-		<!-- A la izquierda los datos; a la derecha presentaciones y existencias -->
-		<div class="row g-3 align-items-start">
-			<div class="col-12 col-xl-8">
-				<card>
-					<card-header class="flex-wrap">
-						<span v-if="reg === ''">Nuevo producto</span>
-						<template v-else>
-							<span>{{ producto?.nombre }}</span>
-							<span class="font-monospace small fw-normal text-body-secondary">{{ producto?.codigo }}</span>
-							<span
-								class="badge border rounded-1 fw-semibold"
-								:class="Number(producto?.activo) === 1
-									? 'bg-success-subtle text-success-emphasis border-success-subtle'
-									: 'bg-secondary-subtle text-secondary-emphasis border-secondary-subtle'"
-							>{{ Number(producto?.activo) === 1 ? 'Activo' : 'Inactivo' }}</span>
-						</template>
-					</card-header>
-					<card-body>
-						<Form
-							:key="`form-${apertura}`"
-							:producto="producto"
-							:pk="reg"
-							:categorias="categorias"
-							:marcas="marcas"
-							:unidades="unidades"
-							@actualizar="actualizar"
-							@cancelar="regresar"
-						/>
-					</card-body>
-				</card>
-			</div>
+		<!-- El formulario arma las dos columnas: presentaciones va en su pestaña y existencias en la tarjeta
+		     bajo la foto (los servicios no las llevan y la existencia solo al editar) -->
+		<Form
+			:key="`form-${apertura}`"
+			:producto="producto"
+			:pk="reg"
+			:categorias="categorias"
+			:marcas="marcas"
+			:unidades="unidades"
+			:ver-presentaciones="esBien"
+			:ver-existencias="esBien && reg !== ''"
+			:num-presentaciones="ficha.presentaciones.length"
+			@actualizar="actualizar"
+			@cancelar="regresar"
+		>
+			<template #presentaciones>
+				<div v-if="cargandoFicha" class="text-center text-body-secondary p-4">
+					<span class="spinner-border spinner-border-sm me-1" aria-hidden="true" />Cargando...
+				</div>
+				<Presentaciones
+					v-else
+					:key="`pre-${reg}-${apertura}`"
+					:pk="reg"
+					:unidad="unidadProducto"
+					:presentaciones="ficha.presentaciones"
+					:unidades="ficha.unidades"
+					@cambio="ficha.presentaciones = $event"
+				/>
+			</template>
 
-			<!-- Los servicios no llevan presentaciones ni existencia -->
-			<div v-if="producto?.tipo_producto !== 'S'" class="col-12 col-xl-4 d-flex flex-column gap-3">
-				<card>
-					<card-header>
-						Presentaciones
-					</card-header>
-					<card-body class="p-0">
-						<div v-if="cargandoFicha" class="text-center text-body-secondary p-4">
-							<span class="spinner-border spinner-border-sm me-1" aria-hidden="true" />Cargando...
-						</div>
-						<Presentaciones
-							v-else
-							:key="`pre-${reg}-${apertura}`"
-							:pk="reg"
-							:unidad="unidadProducto"
-							:presentaciones="ficha.presentaciones"
-							:unidades="ficha.unidades"
-							@cambio="ficha.presentaciones = $event"
-						/>
-					</card-body>
-				</card>
+			<template #sucursal>
+				<span v-if="sucursal" class="ms-auto small fw-normal text-body-secondary text-truncate" :title="sucursal">
+					<i class="fa-solid fa-store me-1" aria-hidden="true" />{{ sucursal }}
+				</span>
+			</template>
 
-				<card v-if="reg !== ''">
-					<card-header>
-						Existencias
-						<span v-if="sucursal" class="ms-auto small fw-normal text-body-secondary text-truncate" :title="sucursal">
-							<i class="fa-solid fa-store me-1" aria-hidden="true" />{{ sucursal }}
-						</span>
-					</card-header>
-					<card-body class="p-0">
-						<div v-if="cargandoFicha" class="text-center text-body-secondary p-4">
-							<span class="spinner-border spinner-border-sm me-1" aria-hidden="true" />Cargando...
-						</div>
-						<Existencias
-							v-else
-							:existencias="ficha.existencias"
-							:presentaciones="ficha.presentaciones"
-							:unidad="unidadProducto"
-							:existencia-minima="producto?.existencia_minima"
-						/>
-					</card-body>
-				</card>
-			</div>
-		</div>
+			<template #existencias>
+				<div v-if="cargandoFicha" class="text-center text-body-secondary p-4">
+					<span class="spinner-border spinner-border-sm me-1" aria-hidden="true" />Cargando...
+				</div>
+				<Existencias
+					v-else
+					:existencias="ficha.existencias"
+					:presentaciones="ficha.presentaciones"
+					:unidad="unidadProducto"
+					:existencia-minima="producto?.existencia_minima"
+				/>
+			</template>
+		</Form>
 	</template>
 </template>
 
@@ -366,6 +339,9 @@
 			},
 			sucursal() {
 				return useSesionStore().usuario?.sucursal?.nombre ?? ""
+			},
+			esBien() {
+				return this.producto?.tipo_producto !== "S"
 			}
 		},
 		components: {

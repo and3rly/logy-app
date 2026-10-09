@@ -657,7 +657,13 @@
 					return
 				}
 
-				if (!this.form.venta_serie_id || !this.form.forma_pago_id || !this.form.moneda_id) {
+				// La moneda no se ve en el POS: sale de Parámetros
+				if (!this.form.moneda_id) {
+					this.$toast.error("La empresa no tiene moneda configurada. Elíjala en Parámetros.")
+					return
+				}
+
+				if (!this.form.venta_serie_id || !this.form.forma_pago_id) {
 					this.$toast.error("Seleccione la serie y la forma de pago.")
 					return
 				}

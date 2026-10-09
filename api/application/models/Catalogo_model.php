@@ -168,6 +168,10 @@ class Catalogo_model extends CI_Model {
 			$this->db->where("a.id", $args["id"]);
 		}
 
+		if (elemento($args, "codigo")) {
+			$this->db->where("a.codigo", $args["codigo"]);
+		}
+
 		$tmp = $this->db
 		->select("
 			a.*,

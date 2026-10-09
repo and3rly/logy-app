@@ -3,6 +3,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Producto extends CI_Controller {
 
+	# Por qué no se pudo ingresar la existencia inicial (ingresarExistencia)
+	private $mensajeExistencia = "";
+
 	public function __construct()
 	{
 		parent::__construct();
@@ -10,7 +13,10 @@ class Producto extends CI_Controller {
 			"mnt/Producto_model",
 			"mnt/Producto_presentacion_model",
 			"mnt/Unidad_medida_model",
-			"Stock_model"
+			"inv/Inventario_ajuste_model",
+			"inv/Inventario_ajuste_detalle_model",
+			"Stock_model",
+			"Movimiento_model"
 		]);
 		$this->load->model("Catalogo_model", "catalogo");
 		$this->output->set_content_type("application/json");
@@ -64,6 +70,39 @@ class Producto extends CI_Controller {
 					}
 				}
 
+				# Foto nueva (base64): se sube a Google Drive y se guarda su id
+				$imagen = verPropiedad($datos, "imagen");
+				unset($datos->imagen);
+
+				if ($imagen) {
+					$this->load->library("Drive");
+					$this->load->helper("archivo");
+
+					$temporal = tempnam(sys_get_temp_dir(), "foto");
+					file_put_contents($temporal, base64_decode($imagen->base64));
+
+					try {
+						$res = subirArchivo([
+							"name"     => $imagen->name,
+							"type"     => $imagen->type,
+							"tmp_name" => $temporal,
+							"carpeta"  => "productos"
+						]);
+
+						$datos->foto = $res->key;
+					} catch (Exception $e) {
+						log_message("error", "Producto::guardar foto " . $e->getMessage());
+						$data["mensaje"] = "No se pudo subir la foto a Google Drive.";
+					}
+
+					@unlink($temporal);
+
+					if (isset($data["mensaje"])) {
+						$this->output->set_output(json_encode($data));
+						return;
+					}
+				}
+
 				# Viene del editor de texto: se guarda solo el formato permitido
 				$datos->descripcion = limpiarHtml(verPropiedad($datos, "descripcion", ""));
 
@@ -76,7 +115,17 @@ class Producto extends CI_Controller {
 					$datos->existencia_minima = 0;
 				}
 
+				# Existencia inicial: solo al crear un bien; entra con un ajuste INI aplicado
+				$inicial = round((float)verPropiedad($datos, "existencia_inicial", 0), 2);
+				$vence = verPropiedad($datos, "fecha_vence_inicial", null);
+				$vence = ($vence && (int)verPropiedad($datos, "control_vence", 0) === 1) ? substr($vence, 0, 10) : null;
+				unset($datos->existencia_inicial, $datos->fecha_vence_inicial);
+
 				$producto = new Producto_model($id);
+
+				if ($producto->getPK() || verPropiedad($datos, "tipo_producto") === "S") {
+					$inicial = 0;
+				}
 
 				# El código lo genera el sistema al crear y no cambia al editar
 				$this->db->trans_begin();
@@ -88,14 +137,30 @@ class Producto extends CI_Controller {
 					(string)$producto->unidad_medida_id !== (string)$datos->unidad_medida_id &&
 					$producto->tieneExistencia()) {
 					$data["mensaje"] = "El producto tiene existencia: para cambiar la unidad de medida primero sáquela con un ajuste de salida.";
+				} else if ($inicial < 0) {
+					$data["mensaje"] = "La existencia inicial no puede ser negativa.";
 				} else {
 					if ($producto->guardar($datos)) {
 						$data["exito"] = 1;
 						$data["mensaje"] = "Producto guardado con éxito.";
-						$data["linea"] = $producto->buscar([
-							"id"  => $producto->getPK(),
-							"_uno" => true
-						]);
+
+						if ($inicial > 0) {
+							$ajuste = $this->ingresarExistencia($producto, $inicial, $vence);
+
+							if ($ajuste === false) {
+								$data["exito"] = 0;
+								$data["mensaje"] = $this->mensajeExistencia;
+							} else {
+								$data["mensaje"] .= " Existencia ingresada con el ajuste {$ajuste->numero}.";
+							}
+						}
+
+						if ($data["exito"] === 1) {
+							$data["linea"] = $producto->buscar([
+								"id"  => $producto->getPK(),
+								"_uno" => true
+							]);
+						}
 					} else {
 						$data["mensaje"] = $producto->getMensaje();
 					}
@@ -237,6 +302,57 @@ class Producto extends CI_Controller {
 		}
 
 		$this->output->set_output(json_encode($data));
+	}
+
+	/**
+	 * Existencia inicial de un producto recién creado: ajuste INI (Inventario inicial, desactivado
+	 * para los ajustes manuales) con una línea en la unidad de medida, aplicado en la sucursal de
+	 * la sesión con el costo del producto. Va dentro de la transacción de guardar(): si falla, no
+	 * se guarda ni el producto. Devuelve el ajuste o false (el motivo queda en mensajeExistencia).
+	 */
+	private function ingresarExistencia($producto, $cantidad, $vence)
+	{
+		$tipo = $this->catalogo->verAjusteTipos([
+			"codigo" => "INI",
+			"_todos" => true,
+			"_uno" => true
+		]);
+
+		if (!$tipo || $tipo->sentido !== "ENTRADA") {
+			$this->mensajeExistencia = "No existe el tipo de ajuste Inventario inicial (INI): no se pudo ingresar la existencia.";
+			return false;
+		}
+
+		$ajuste = new Inventario_ajuste_model();
+		$ajuste->asignarNumero();
+
+		$guardado = $ajuste->guardar([
+			"inventario_ajuste_tipo_id" => $tipo->id,
+			"observacion" => "Existencia inicial del producto {$producto->codigo}"
+		]);
+
+		if ($guardado) {
+			$det = new Inventario_ajuste_detalle_model();
+			$guardado = $det->guardar([
+				"inventario_ajuste_id" => $ajuste->getPK(),
+				"producto_id" => $producto->getPK(),
+				"unidad_medida_id" => $producto->unidad_medida_id,
+				"cantidad" => $cantidad,
+				"fecha_vence" => $vence
+			]);
+		}
+
+		if (!$guardado) {
+			$this->mensajeExistencia = "No se pudo ingresar la existencia inicial, intente nuevamente.";
+			return false;
+		}
+
+		if (!$ajuste->aplicar()) {
+			$this->mensajeExistencia = $ajuste->getMensaje();
+			return false;
+		}
+
+		return $ajuste;
 	}
 
 	# El producto, si es de la empresa de la sesión

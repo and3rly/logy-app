@@ -298,6 +298,17 @@ const routes: RouteRecordRaw[] = [
           migas: [{ texto: 'Configuración' }, { texto: 'Menú' }],
         },
       },
+      // --- Pruebas (fuera del menú; la API solo responde a un administrador) ---
+      {
+        path: 'prueba-drive',
+        name: 'prueba-drive',
+        component: () => import('../views/prueba/Drive.vue'),
+        meta: {
+          titulo: 'Prueba de Google Drive',
+          descripcion: 'Conexión con la cuenta de servicio, subir, listar y enviar a la papelera',
+          migas: [{ texto: 'Pruebas' }, { texto: 'Google Drive' }],
+        },
+      },
       ...modulo('inventario/productos', 'Productos', 'Nuevo producto', 'Catálogo de productos, stock y precios', 'Inventario'),
       ...modulo('inventario/categorias', 'Categorías', 'Nueva categoría', 'Agrupación de los productos del inventario', 'Inventario'),
       ...modulo('inventario/marcas', 'Marcas', 'Nueva marca', 'Marcas de los productos y su país de origen', 'Inventario'),

@@ -1,47 +1,85 @@
 <template>
-	<!-- Barra para agregar en una fila: escanear (Enter agrega al momento) o buscar y agregar; siempre cantidad 1 (se ajusta en la tabla) -->
+	<!-- Un solo buscador: el lector (código exacto + Enter) agrega al momento; al escribir un nombre se
+	     sugieren productos (flechas + Enter o clic). Siempre cantidad 1, se ajusta en la tabla -->
 	<form
 		v-if="editable"
 		class="d-flex flex-wrap gap-2 px-3 py-2 border-bottom bg-body-tertiary"
 		autocomplete="off"
-		@submit.prevent="agregarPorCodigo"
+		@submit.prevent="agregarBusqueda"
 	>
-		<div class="input-group flex-grow-1 w-auto">
-			<span
-				class="input-group-text"
-				title="Solo por código o código de barras exacto: se agrega con cantidad 1; si ya está en la lista, suma 1. Para buscar por nombre use Ver productos."
+		<div class="position-relative flex-grow-1" style="min-width: 16rem">
+			<div class="input-group">
+				<span class="input-group-text">
+					<span v-if="btnGuardar" class="spinner-border spinner-border-sm" aria-hidden="true" />
+					<i v-else class="fa-solid fa-magnifying-glass" aria-hidden="true" />
+				</span>
+				<input
+					id="cotizacionProducto"
+					ref="producto"
+					v-model="busqueda"
+					type="search"
+					class="form-control"
+					placeholder="Nombre, código o escanee el código de barras"
+					aria-label="Buscar producto para agregar"
+					role="combobox"
+					aria-autocomplete="list"
+					aria-controls="cotizacionSugerencias"
+					:aria-expanded="mostrarSugerencias"
+					@input="sugerido = 0; sugerenciasAbiertas = true"
+					@focus="sugerenciasAbiertas = true"
+					@blur="sugerenciasAbiertas = false"
+					@keydown.down.prevent="moverSugerencia(1)"
+					@keydown.up.prevent="moverSugerencia(-1)"
+					@keydown.esc="busqueda = ''"
+					@keydown.enter.prevent="agregarBusqueda"
+				>
+			</div>
+
+			<!-- Sugerencias: mousedown.prevent para que el clic llegue antes de perder el foco -->
+			<ul
+				v-if="mostrarSugerencias"
+				id="cotizacionSugerencias"
+				class="list-group position-absolute start-0 end-0 mt-1 shadow-sm overflow-auto"
+				style="z-index: 1050; max-height: 20rem"
+				role="listbox"
 			>
-				<i class="fa-solid fa-barcode" aria-hidden="true" />
-			</span>
-			<input
-				id="cotizacionProducto"
-				ref="producto"
-				v-model="busqueda"
-				type="search"
-				class="form-control"
-				placeholder="Escanee el código de barras o escriba el código del producto"
-				aria-label="Código o código de barras del producto"
-				@keydown.enter.prevent="agregarPorCodigo"
-			>
-			<button
-				type="submit"
-				class="btn btn-primary"
-				:disabled="btnGuardar || !busqueda.trim()"
-				title="Agregar el producto con ese código (cantidad 1, precio de venta)"
-			>
-				<span v-if="btnGuardar" class="spinner-border spinner-border-sm" aria-hidden="true" />
-				<template v-else>
-					<i class="fa-solid fa-plus me-1" aria-hidden="true" />Agregar
-				</template>
-			</button>
+				<li
+					v-for="(p, n) in sugerencias"
+					:key="p.producto_id"
+					class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-3 py-2"
+					:class="{ active: n === sugerido }"
+					role="option"
+					:aria-selected="n === sugerido"
+					style="cursor: pointer"
+					@mousedown.prevent="agregar(p)"
+					@mouseenter="sugerido = n"
+				>
+					<div class="lh-sm text-truncate">
+						<div class="fw-semibold text-truncate">{{ p.nombre }}</div>
+						<div class="small" :class="n === sugerido ? '' : 'text-body-secondary'">
+							<span class="font-monospace">{{ p.codigo }}</span> · {{ p.nunidad }}
+							<template v-if="enCotizacion(p)"> · En la cotización: {{ enCotizacion(p) }}</template>
+						</div>
+					</div>
+					<div class="text-end small text-nowrap lh-sm">
+						<div class="fw-semibold">{{ simbolo }} {{ formatoMonto(precioVenta(p, null)) }}</div>
+						<div :class="n === sugerido ? '' : (Number(p.existencia) > 0 ? 'text-body-secondary' : 'text-danger-emphasis')">
+							Existencia {{ formatoCantidad(p.existencia) }}
+						</div>
+					</div>
+				</li>
+				<li v-if="sugerencias.length === 0" class="list-group-item small text-body-secondary">
+					Sin coincidencias. Revise el catálogo o cree el producto.
+				</li>
+			</ul>
 		</div>
 
-		<!-- Un solo botón sólido (Agregar); los secundarios suaves: celeste = consultar, verde = crear -->
-		<button type="button" class="btn btn-suave-info" @click="abrirCatalogo">
-			<i class="fa-solid fa-list me-1" aria-hidden="true" />Ver productos
+		<!-- Secundarios neutros: el buscador es la forma principal de agregar -->
+		<button type="button" class="btn btn-outline-secondary" title="Ver todos los productos y agregar varios" @click="abrirCatalogo">
+			<i class="fa-solid fa-list" aria-hidden="true" /><span class="ms-1 d-none d-md-inline">Catálogo</span>
 		</button>
-		<button type="button" class="btn btn-suave-success" title="Crear un producto nuevo y agregarlo a la cotización" @click="abrirNuevoProducto">
-			<i class="fa-solid fa-plus me-1" aria-hidden="true" />Nuevo producto
+		<button type="button" class="btn btn-outline-secondary" title="Crear un producto nuevo y agregarlo a la cotización" @click="abrirNuevoProducto">
+			<i class="fa-solid fa-plus" aria-hidden="true" /><span class="ms-1 d-none d-md-inline">Nuevo producto</span>
 		</button>
 	</form>
 
@@ -235,17 +273,16 @@
 		</div>
 	</Teleport>
 
-	<!-- Cantidad, precio, descuento y nota se editan en la tabla y se guardan al salir del campo -->
+	<!-- Cantidad, precio, descuento y nota se editan en la tabla y se guardan al salir del campo;
+	     la unidad o la presentación van debajo del nombre. Los totales se muestran en el panel lateral -->
 	<div class="table-responsive">
 		<table class="table table-sm mb-0">
 			<thead>
 				<tr>
 					<th class="ps-3">Producto</th>
-					<th>Unidad</th>
-					<th>Presentación</th>
-					<th class="text-end" style="width: 7rem">Cantidad</th>
+					<th class="text-center" style="width: 9rem">Cantidad</th>
 					<th class="text-end" style="width: 8.5rem">Precio</th>
-					<th class="text-end" style="width: 6rem">Desc. %</th>
+					<th class="text-end" style="width: 5.5rem">Desc. %</th>
 					<th class="text-end">Total</th>
 					<th v-if="editable" class="text-end pe-3" style="width: 1%"></th>
 				</tr>
@@ -255,8 +292,22 @@
 					<td class="ps-3">
 						<div class="lh-sm">
 							<div class="fw-semibold text-body">{{ i.producto_nombre }}</div>
-							<div class="small text-body-secondary">
-								<span class="font-monospace">{{ i.producto_codigo }}</span> ·
+							<div class="d-flex flex-wrap align-items-center gap-1 small text-body-secondary mt-1">
+								<span class="font-monospace">{{ i.producto_codigo }}</span>
+								<span aria-hidden="true">·</span>
+								<!-- Sin presentación la línea es en la unidad de medida -->
+								<select
+									v-if="editable && presentacionesDe(i.producto_id).length"
+									:value="i.producto_presentacion_id ? String(i.producto_presentacion_id) : ''"
+									class="form-select form-select-sm w-auto py-0"
+									:aria-label="`Presentación de ${i.producto_nombre}`"
+									@change="cambiarPresentacion(i, $event.target.value)"
+								>
+									<option value="">{{ i.unidad_codigo }}</option>
+									<option v-for="pre in presentacionesDe(i.producto_id)" :key="pre.producto_presentacion_id" :value="String(pre.producto_presentacion_id)">{{ pre.nombre }}</option>
+								</select>
+								<span v-else class="badge rounded-1 border bg-body-tertiary text-body-secondary fw-semibold">{{ i.presentacion_nombre || i.unidad_codigo }}</span>
+								<span aria-hidden="true">·</span>
 								<span :class="existencia(i).clase">{{ existencia(i).texto }}</span>
 							</div>
 						</div>
@@ -271,36 +322,40 @@
 							@change="guardarFila(i)"
 							@keydown.enter.prevent="$event.target.blur()"
 						>
-						<div v-else-if="i.observacion" class="small text-body-secondary fst-italic mt-1">{{ i.observacion }}</div>
+						<div v-else-if="i.observacion" class="small text-body-secondary fst-italic mt-1">
+							<i class="fa-regular fa-comment me-1" aria-hidden="true" />{{ i.observacion }}
+						</div>
 					</td>
-					<td>{{ i.unidad_codigo }}</td>
-					<td>
-						<!-- Sin presentación la línea es en la unidad de medida -->
-						<select
-							v-if="editable && presentacionesDe(i.producto_id).length"
-							:value="i.producto_presentacion_id ? String(i.producto_presentacion_id) : ''"
-							class="form-select form-select-sm w-auto"
-							:aria-label="`Presentación de ${i.producto_nombre}`"
-							@change="cambiarPresentacion(i, $event.target.value)"
-						>
-							<option value="">Sin presentación</option>
-							<option v-for="pre in presentacionesDe(i.producto_id)" :key="pre.producto_presentacion_id" :value="String(pre.producto_presentacion_id)">{{ pre.nombre }}</option>
-						</select>
-						<template v-else-if="i.presentacion_nombre">{{ i.presentacion_nombre }}</template>
-						<span v-else class="text-body-secondary">—</span>
-					</td>
-					<td class="text-end">
-						<input
-							v-if="editable"
-							v-model="i.cantidad"
-							type="number"
-							class="form-control form-control-sm text-end"
-							min="0.01"
-							step="0.01"
-							:aria-label="`Cantidad de ${i.producto_nombre}`"
-							@change="guardarFila(i)"
-							@keydown.enter.prevent="$event.target.blur()"
-						>
+					<td class="text-center">
+						<div v-if="editable" class="input-group input-group-sm flex-nowrap cantidad-pasos">
+							<button
+								type="button"
+								class="btn btn-outline-secondary"
+								:disabled="Number(i.cantidad) <= 1"
+								:aria-label="`Restar uno a ${i.producto_nombre}`"
+								@click="sumarCantidad(i, -1)"
+							>
+								<i class="fa-solid fa-minus" aria-hidden="true" />
+							</button>
+							<input
+								v-model="i.cantidad"
+								type="number"
+								class="form-control text-center px-1"
+								min="0.01"
+								step="0.01"
+								:aria-label="`Cantidad de ${i.producto_nombre}`"
+								@change="guardarFila(i)"
+								@keydown.enter.prevent="$event.target.blur()"
+							>
+							<button
+								type="button"
+								class="btn btn-outline-secondary"
+								:aria-label="`Sumar uno a ${i.producto_nombre}`"
+								@click="sumarCantidad(i, 1)"
+							>
+								<i class="fa-solid fa-plus" aria-hidden="true" />
+							</button>
+						</div>
 						<template v-else>{{ formatoCantidad(i.cantidad) }}</template>
 					</td>
 					<td class="text-end">
@@ -310,7 +365,7 @@
 							type="number"
 							class="form-control form-control-sm text-end"
 							min="0"
-							step="0.01"
+							step="any"
 							:aria-label="`Precio de ${i.producto_nombre}`"
 							@change="guardarFila(i)"
 							@keydown.enter.prevent="$event.target.blur()"
@@ -325,7 +380,7 @@
 							class="form-control form-control-sm text-end"
 							min="0"
 							max="100"
-							step="0.01"
+							step="any"
 							:aria-label="`Descuento de ${i.producto_nombre}`"
 							@change="guardarFila(i)"
 							@keydown.enter.prevent="$event.target.blur()"
@@ -348,7 +403,7 @@
 						>
 							<i class="fa-regular fa-comment" aria-hidden="true" />
 						</button>
-						<button type="button" class="btn btn-sm btn-link text-danger" title="Quitar" @click="quitarLinea(i)">
+						<button type="button" class="btn btn-sm btn-link text-danger" title="Quitar" :aria-label="`Quitar ${i.producto_nombre}`" @click="quitarLinea(i)">
 							<i class="fa-regular fa-trash-can" aria-hidden="true" />
 						</button>
 					</td>
@@ -360,39 +415,14 @@
 					</td>
 				</tr>
 				<tr v-else-if="lista.length === 0">
-					<td :colspan="columnas" class="text-center text-body-secondary py-4">
-						<div class="fs-4 mb-2 opacity-50"><i class="fa-solid fa-cart-plus" aria-hidden="true" /></div>
-						Busque un producto arriba para agregarlo a la cotización
+					<td :colspan="columnas" class="text-center text-body-secondary py-5">
+						<div class="fs-3 mb-2 opacity-50"><i class="fa-solid fa-cart-plus" aria-hidden="true" /></div>
+						<template v-if="editable">Busque un producto arriba o escanee su código para agregarlo</template>
+						<template v-else>La cotización no tiene productos</template>
 					</td>
 				</tr>
 			</tbody>
 		</table>
-	</div>
-
-	<!-- Totales al pie -->
-	<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 px-3 py-3 border-top">
-		<div class="small text-body-secondary">
-			{{ lista.length }} {{ lista.length === 1 ? 'producto' : 'productos' }}
-			<template v-if="faltantes > 0">
-				· <span class="text-warning-emphasis"><i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true" />{{ faltantes }} sin existencia suficiente (solo aviso)</span>
-			</template>
-		</div>
-		<div style="min-width: 15rem">
-			<template v-if="resumen.descuento > 0">
-				<div class="d-flex justify-content-between small text-body-secondary">
-					<span>Subtotal</span><span>{{ simbolo }} {{ formatoMonto(resumen.subtotal) }}</span>
-				</div>
-				<div class="d-flex justify-content-between small text-body-secondary">
-					<span>Descuento</span><span>- {{ simbolo }} {{ formatoMonto(resumen.descuento) }}</span>
-				</div>
-			</template>
-			<div class="d-flex justify-content-between fs-5 fw-bold text-body border-top mt-1 pt-1">
-				<span>Total</span><span class="text-nowrap">{{ simbolo }} {{ formatoMonto(resumen.total) }}</span>
-			</div>
-			<div class="d-flex justify-content-between small text-body-secondary" title="Total menos el costo de los productos; no sale en la cotización">
-				<span>Ganancia estimada</span><span>{{ simbolo }} {{ formatoMonto(resumen.ganancia) }}</span>
-			</div>
-		</div>
 	</div>
 </template>
 
@@ -403,7 +433,7 @@
 	import api, { mensajeError } from '@/services/api'
 	import { normalizar } from '@/utils/texto'
 	import { estiloEtiqueta } from '@/config/etiquetas'
-	import { formatoMonto, formatoCantidad } from '@/utils/numero'
+	import { formatoMonto, formatoCantidad, decimalesMonto } from '@/utils/numero'
 
 	export default {
 		name: "DetalleCotizacion",
@@ -449,13 +479,16 @@
 				default: null,
 			},
 		},
-		emits: ["cotizacion", "lineas", "producto-creado"],
+		emits: ["cotizacion", "lineas", "resumen", "producto-creado"],
 		components: {
 			FormProducto
 		},
 		mixins: [Accion],
 		data: () => ({
 			busqueda: "",
+			// Sugerencia resaltada del buscador y si la lista está a la vista
+			sugerido: 0,
+			sugerenciasAbiertas: false,
 			filtroCatalogo: "",
 			categoriaCatalogo: null,
 			cantidades: {},
@@ -473,6 +506,8 @@
 		created() {
 			this.url   = "ven/cotizacion_detalle"
 			this.autoBuscar = false
+			// Espera de los botones − / + antes de guardar, por línea
+			this.esperas = {}
 
 			this.cargarDetalle()
 			this.cargarPrecios()
@@ -494,6 +529,7 @@
 		beforeUnmount() {
 			this.modalCatalogo?.dispose()
 			this.modalProducto?.dispose()
+			Object.values(this.esperas).forEach(clearTimeout)
 		},
 		methods: {
 			cargarDetalle() {
@@ -502,7 +538,7 @@
 				api
 				.get(`/ven/cotizacion/get_detalle/${this.cotizacionId}`)
 				.then(result => {
-					this.lista = result.data.det ?? []
+					this.lista = (result.data.det ?? []).map(e => this.normalizarLinea(e))
 					this.$emit("lineas", this.lista.length)
 				})
 				.catch(e => {
@@ -512,26 +548,38 @@
 					this.btnBuscar = false
 				})
 			},
-			// Enter o Agregar: solo código o código de barras exacto (lector); se agrega al momento con cantidad 1
-			agregarPorCodigo() {
+			// Enter: el código o código de barras exacto (lector) se agrega al momento con cantidad 1;
+			// si no, la sugerencia resaltada
+			agregarBusqueda() {
 				let texto = this.busqueda.trim().toLowerCase()
 
 				if (!texto) {
 					return
 				}
 
-				let p = this.productos.find(e =>
-					String(e.codigo).toLowerCase() === texto ||
-					String(e.codigo_barra ?? "").toLowerCase() === texto
-				)
+				let p = this.productoPorCodigo(texto) ?? this.sugerencias[this.sugerido]
 
 				if (!p) {
-					this.$toast.error(`No hay un producto con el código "${this.busqueda.trim()}".`)
+					this.$toast.error(`No hay un producto que coincida con "${this.busqueda.trim()}".`)
 					this.$refs.producto?.select()
 					return
 				}
 
 				this.agregar(p)
+			},
+			productoPorCodigo(texto) {
+				return this.productos.find(e =>
+					String(e.codigo).toLowerCase() === texto ||
+					String(e.codigo_barra ?? "").toLowerCase() === texto
+				)
+			},
+			moverSugerencia(paso) {
+				let total = this.sugerencias.length
+
+				if (total) {
+					this.sugerenciasAbiertas = true
+					this.sugerido = (this.sugerido + paso + total) % total
+				}
 			},
 			// Si el producto (en esa presentación) ya está en la cotización se suma a su línea; si no, se agrega
 			// con su precio de venta (el de la lista del cliente o el general; ver precioVenta)
@@ -576,7 +624,7 @@
 					let res = result.data
 
 					if (res.exito) {
-						this.lista.push(res.linea)
+						this.lista.push(this.normalizarLinea(res.linea))
 						this.$emit("cotizacion", res.cotizacion)
 						this.$emit("lineas", this.lista.length)
 						this.nuevaLinea(enfocar)
@@ -596,6 +644,7 @@
 			},
 			nuevaLinea(enfocar = true) {
 				this.busqueda = ""
+				this.sugerido = 0
 
 				if (enfocar) {
 					this.$nextTick(() => this.$refs.producto?.focus())
@@ -715,7 +764,7 @@
 				let pre = this.presentacionDe(linea.producto_id, presentacionId)
 
 				linea.producto_presentacion_id = pre ? pre.producto_presentacion_id : null
-				linea.precio = p ? this.precioVenta(p, pre).toFixed(2) : linea.precio
+				linea.precio = p ? this.montoEntrada(this.precioVenta(p, pre)) : linea.precio
 				this.guardarFila(linea)
 			},
 			nombreDe(lista, id) {
@@ -751,7 +800,7 @@
 					let res = result.data
 
 					if (res.exito) {
-						Object.assign(linea, res.linea)
+						Object.assign(linea, this.normalizarLinea(res.linea))
 						this.$emit("cotizacion", res.cotizacion)
 
 						if (aviso) {
@@ -789,6 +838,40 @@
 				.catch(e => {
 					this.$toast.error(mensajeError(e))
 				})
+			},
+			// Botones − / +: se ve al momento y se guarda al dejar de pulsar
+			sumarCantidad(linea, paso) {
+				let cantidad = Math.round((Number(linea.cantidad) + paso) * 100) / 100
+
+				if (!(cantidad > 0)) {
+					return
+				}
+
+				linea.cantidad = cantidad
+
+				clearTimeout(this.esperas[linea.id])
+				this.esperas[linea.id] = setTimeout(() => {
+					delete this.esperas[linea.id]
+					this.guardarFila(linea, false)
+				}, 500)
+			},
+			// La API manda los decimales de la columna ("1.00000"): en los campos, la cantidad sin ceros
+			// de sobra y el precio con los decimales de montos
+			normalizarLinea(linea) {
+				return {
+					...linea,
+					cantidad: Number(linea.cantidad),
+					precio: this.montoEntrada(linea.precio),
+					descuento_porcentaje: Number(linea.descuento_porcentaje)
+				}
+			},
+			// Monto para un campo editable: con los decimales configurados, salvo que traiga más
+			// (no se redondea un precio guardado solo por mostrarlo)
+			montoEntrada(valor) {
+				let numero = Number(valor ?? 0)
+				let texto = numero.toFixed(decimalesMonto())
+
+				return Number(texto) === numero ? texto : String(numero)
 			},
 			// Mientras se edita, los importes se calculan en pantalla (igual que la API)
 			calculo(linea) {
@@ -851,15 +934,49 @@
 					return suma
 				}, { subtotal: 0, descuento: 0, total: 0, ganancia: 0 })
 			},
+			// Coincidencias del buscador por nombre, código o código de barras (las de código primero)
+			sugerencias() {
+				let texto = normalizar(this.busqueda.trim())
+
+				if (!texto) {
+					return []
+				}
+
+				let porCodigo = []
+				let porNombre = []
+
+				for (let p of this.productos) {
+					if ([p.codigo, p.codigo_barra].some(v => normalizar(String(v ?? "")).startsWith(texto))) {
+						porCodigo.push(p)
+					} else if (normalizar(String(p.nombre ?? "")).includes(texto)) {
+						porNombre.push(p)
+					}
+				}
+
+				return [...porCodigo, ...porNombre].slice(0, 8)
+			},
+			mostrarSugerencias() {
+				return this.sugerenciasAbiertas && this.busqueda.trim() !== ""
+			},
 			// Líneas cuya cantidad supera la existencia de la sucursal
 			faltantes() {
 				return this.lista.filter(e => this.existencia(e).clase !== "text-success-emphasis").length
 			},
 			columnas() {
-				return this.editable ? 8 : 7
+				return this.editable ? 6 : 5
 			}
 		},
 		watch: {
+			// Los totales se muestran en el panel lateral de la cotización
+			resumen: {
+				handler(valor) {
+					this.$emit("resumen", { ...valor, faltantes: this.faltantes })
+				},
+				immediate: true
+			},
+			faltantes() {
+				this.$emit("resumen", { ...this.resumen, faltantes: this.faltantes })
+			},
 			// Al guardar otra lista en el encabezado cambian los precios (las líneas ya agregadas conservan el suyo)
 			listaPrecioId() {
 				this.cargarPrecios()

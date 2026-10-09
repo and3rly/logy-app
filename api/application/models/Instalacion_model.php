@@ -166,7 +166,8 @@ class Instalacion_model extends CI_Model {
 				"abr_venta" => "VEN",
 				"abr_recibo" => "RC",
 				"decimal_cantidad" => 0,
-				"decimal_monto" => 2
+				"decimal_monto" => 2,
+				"formato_impresion" => 1
 			]]);
 
 			foreach ($this->porEmpresa as $tabla) {

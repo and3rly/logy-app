@@ -380,6 +380,39 @@ h4, .h4, h5, .h5, h6, .h6 { font-size: 0.875rem; }
   background-color: rgba(var(--etq-rgb), 0.2);
 }
 
+/* Avance de un documento (cotización): círculos numerados unidos por una línea
+   que toma el color primario al alcanzar el paso */
+.cotizacion-pasos-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+}
+
+.cotizacion-pasos-linea {
+  flex: 1;
+  min-width: 1rem;
+  margin: 0 0.75rem;
+  border-top: 2px solid var(--bs-border-color);
+}
+
+.cotizacion-pasos-linea.alcanzada {
+  border-top-color: var(--color-primario);
+}
+
+/* Cantidad con botones − / +: sin las flechas del navegador */
+.cantidad-pasos input::-webkit-outer-spin-button,
+.cantidad-pasos input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.cantidad-pasos input {
+  -moz-appearance: textfield;
+}
+
 /* La última fila no dibuja línea: ya está el borde de la tarjeta */
 .card .table > tbody > tr:last-child > *,
 .modal .table > tbody > tr:last-child > * {
@@ -2998,6 +3031,33 @@ h4, .h4, h5, .h5, h6, .h6 { font-size: 0.875rem; }
     position: sticky;
     top: 5rem;
   }
+}
+
+/* Foto del producto: cuadro para arrastrar o elegir la imagen, con su vista previa */
+.foto-producto {
+  width: 100%;
+  max-width: 14rem;
+  aspect-ratio: 1;
+  border-style: dashed !important;
+  cursor: pointer;
+}
+
+/* Pestañas de la ficha: en pantallas chicas se desplazan de lado en vez de partirse en renglones */
+.pestanas-producto {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pestanas-producto .nav-link {
+  margin-top: 0.5rem;
+}
+
+/* Pie de la ficha (Activo, Cancelar, Guardar): queda a la vista al desplazarse dentro de la tarjeta */
+.acciones-producto {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background-color: var(--bs-card-bg, var(--bs-body-bg));
 }
 
 /* Teléfono: tarjeta en un renglón, con la foto chica a la izquierda */

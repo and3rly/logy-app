@@ -14,7 +14,8 @@ class Venta extends CI_Controller {
 			"Movimiento_model",
 			"fin/Cuenta_cobrar_model",
 			"mnt/Cliente_model",
-			"mnt/Lista_precio_model"
+			"mnt/Lista_precio_model",
+			"mnt/Empresa_parametro_model"
 		]);
 		$this->load->model("Catalogo_model", "catalogo");
 		$this->output->set_content_type("application/json");
@@ -125,7 +126,10 @@ class Venta extends CI_Controller {
 					$data["mensaje"] = $venta->getMensaje();
 				}
 			} else {
-				$data["mensaje"] = "Seleccione la serie, la forma de pago y la moneda.";
+				# La moneda no se ve en el POS: sale de Parámetros
+				$data["mensaje"] = verPropiedad($datos, "moneda_id")
+					? "Seleccione la serie y la forma de pago."
+					: "La empresa no tiene moneda configurada. Elíjala en Parámetros.";
 			}
 		} else {
 			$data["mensaje"] = "Método incorrecto";
@@ -173,7 +177,7 @@ class Venta extends CI_Controller {
 		$this->output->set_output(json_encode($data));
 	}
 
-	# Ticket de 80 mm
+	# Ticket de 80 mm o carta, según el formato de impresión de los parámetros
 	public function imprimir($id="")
 	{
 		$venta = new Venta_model($id);
@@ -188,25 +192,53 @@ class Venta extends CI_Controller {
 		}
 
 		$datos = $venta->datosImpresion();
-		$html = $this->load->view("ven/venta_pdf", $datos, true);
+
+		# Sin parámetros o con un valor desconocido se imprime el ticket
+		$param = $this->catalogo->verEmpresaParametro();
+		$carta = $param && isset($param->formato_impresion) &&
+			(int)$param->formato_impresion === Empresa_parametro_model::IMPRESION_CARTA;
 
 		$temporal = APPPATH . "cache/mpdf";
 		if (!is_dir($temporal)) {
 			mkdir($temporal, 0775, true);
 		}
 
-		# Alto según las líneas: el ticket no se corta en páginas
-		$alto = 120 + (count($datos["detalle"]) * 9);
+		if ($carta) {
+			$html = $this->load->view("ven/venta_carta_pdf", $datos, true);
 
-		$pdf = new \Mpdf\Mpdf([
-			"mode" => "utf-8",
-			"format" => [80, $alto],
-			"margin_top" => 4,
-			"margin_bottom" => 4,
-			"margin_left" => 4,
-			"margin_right" => 4,
-			"tempDir" => $temporal
-		]);
+			$pdf = new \Mpdf\Mpdf([
+				"mode" => "utf-8",
+				"format" => "Letter",
+				"margin_top" => 12,
+				"margin_bottom" => 16,
+				"margin_left" => 12,
+				"margin_right" => 12,
+				"margin_footer" => 6,
+				"tempDir" => $temporal
+			]);
+
+			$pdf->SetHTMLFooter(
+				'<table width="100%" style="font-size: 7pt; color: #64748b; border-top: 1px solid #e2e8f0;"><tr>' .
+				'<td style="padding-top: 3px;">Impreso el ' . date("d/m/Y H:i") . '</td>' .
+				'<td style="padding-top: 3px; text-align: right;">' . html_escape($venta->correlativo) . ' · Página {PAGENO} de {nbpg}</td>' .
+				'</tr></table>'
+			);
+		} else {
+			$html = $this->load->view("ven/venta_pdf", $datos, true);
+
+			# Alto según las líneas: el ticket no se corta en páginas
+			$alto = 120 + (count($datos["detalle"]) * 9);
+
+			$pdf = new \Mpdf\Mpdf([
+				"mode" => "utf-8",
+				"format" => [80, $alto],
+				"margin_top" => 4,
+				"margin_bottom" => 4,
+				"margin_left" => 4,
+				"margin_right" => 4,
+				"tempDir" => $temporal
+			]);
+		}
 
 		$pdf->SetTitle("Venta {$venta->correlativo}");
 		$pdf->SetAuthor($datos["empresa"] ? $datos["empresa"]->nombre : "Logy");
@@ -214,7 +246,7 @@ class Venta extends CI_Controller {
 		if ((int)$venta->anulado === 1) {
 			$pdf->SetWatermarkText("ANULADA");
 			$pdf->showWatermarkText = true;
-			$pdf->watermarkTextAlpha = 0.1;
+			$pdf->watermarkTextAlpha = $carta ? 0.08 : 0.1;
 		}
 
 		$pdf->WriteHTML($html);

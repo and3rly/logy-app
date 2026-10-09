@@ -2,6 +2,10 @@
 
 class Empresa_parametro_model extends Centro_model {
 
+	# Formato de impresión de la venta (formato_impresion)
+	const IMPRESION_TICKET = 1;
+	const IMPRESION_CARTA = 2;
+
 	public $empresa_id;
 	public $moneda_id = null;
 	public $abr_recepcion = null;
@@ -11,6 +15,7 @@ class Empresa_parametro_model extends Centro_model {
 	public $abr_venta = null;
 	public $decimal_cantidad = null;
 	public $decimal_monto = null;
+	public $formato_impresion = self::IMPRESION_TICKET;
 	public $activo = 1;
 
 	public function __construct($id="")

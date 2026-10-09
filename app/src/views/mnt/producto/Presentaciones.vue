@@ -67,107 +67,113 @@
 				{{ reg === '' ? 'Nueva presentación' : 'Editar presentación' }}
 			</div>
 
-			<!-- Otra unidad (Libra, con la equivalencia del catálogo) o un empaque propio del producto (Caja 12) -->
-			<div v-if="reg === ''" class="btn-group w-100 mb-2" role="group" aria-label="Tipo de presentación">
-				<template v-for="t in tipos" :key="t.valor">
-					<input
-						:id="`tipoPresentacion${t.valor}`"
-						v-model="form.tipo"
-						type="radio"
-						class="btn-check"
-						name="tipoPresentacion"
-						:value="t.valor"
-					>
-					<label
-						class="btn btn-sm"
-						:class="form.tipo === t.valor ? 'btn-primary' : 'btn-outline-secondary'"
-						:for="`tipoPresentacion${t.valor}`"
-					>
-						<i class="fa-solid me-1" :class="t.icono" aria-hidden="true" />{{ t.texto }}
-					</label>
-				</template>
-			</div>
-
-			<template v-if="form.tipo === 'unidad'">
-				<select
-					v-if="disponibles.length > 0"
-					ref="unidad"
-					v-model="form.unidad_medida_id"
-					class="form-select"
-					aria-label="Unidad de la presentación"
-					required
-				>
-					<option :value="null" disabled>Seleccionar unidad...</option>
-					<option
-						v-for="u in disponibles"
-						:key="u.unidad_medida_id"
-						:value="String(u.unidad_medida_id)"
-						:disabled="u.factor === null"
-					>
-						{{ u.nombre }} · {{ textoEquivalencia(u) }}{{ u.factor === null ? ' (no cabe entera)' : '' }}
-					</option>
-				</select>
-				<div v-else class="small text-body-secondary">
-					No hay unidades con equivalencia a {{ unidad?.nombre ?? 'esta unidad' }}.
-					<router-link to="/unidad_medida">Regístrelas en Unidades de medida</router-link>.
-				</div>
-			</template>
-
-			<div v-else class="row g-2">
-				<div class="col-12 col-sm-6 col-xl-12 col-xxl-6">
-					<input
-						ref="nombre"
-						v-model="form.nombre"
-						type="text"
-						class="form-control"
-						maxlength="50"
-						placeholder="Ej. Caja 12"
-						aria-label="Nombre del empaque"
-						required
-					>
-				</div>
-				<div class="col-12 col-sm-6 col-xl-12 col-xxl-6">
-					<div class="input-group">
-						<span class="input-group-text">Contiene</span>
-						<input
-							v-model.number="form.factor"
-							type="number"
-							class="form-control text-end"
-							min="1.00001"
-							step="any"
-							aria-label="Unidades que contiene el empaque"
-							required
-						>
-						<span class="input-group-text">{{ unidad?.codigo ?? '' }}</span>
+			<!-- En una fila: tipo (otra unidad del catálogo, ej. Libra, o un empaque propio, ej. Caja 12), datos y botones; en pantallas chicas se apilan -->
+			<div class="row g-2 align-items-start">
+				<div v-if="reg === ''" class="col-12 col-md-auto">
+					<div class="btn-group w-100" role="group" aria-label="Tipo de presentación">
+						<template v-for="t in tipos" :key="t.valor">
+							<input
+								:id="`tipoPresentacion${t.valor}`"
+								v-model="form.tipo"
+								type="radio"
+								class="btn-check"
+								name="tipoPresentacion"
+								:value="t.valor"
+							>
+							<label
+								class="btn"
+								:class="form.tipo === t.valor ? 'btn-primary' : 'btn-outline-secondary'"
+								:for="`tipoPresentacion${t.valor}`"
+							>
+								<i class="fa-solid me-1" :class="t.icono" aria-hidden="true" />{{ t.texto }}
+							</label>
+						</template>
 					</div>
 				</div>
-			</div>
 
-			<div class="d-flex justify-content-end gap-2 mt-2">
-				<button
-					v-if="reg !== ''"
-					type="button"
-					class="btn btn-sm btn-outline-secondary"
-					:disabled="btnGuardar"
-					@click="cancelarEdicion"
-				>
-					<i class="fa-solid fa-xmark me-1" aria-hidden="true" />Cancelar
-				</button>
-				<button
-					type="submit"
-					class="btn btn-sm btn-primary"
-					:disabled="btnGuardar || (form.tipo === 'unidad' && disponibles.length === 0)"
-				>
-					<span v-if="btnGuardar" class="spinner-border spinner-border-sm me-1" aria-hidden="true" />
-					<template v-if="reg === ''">
-						<i v-if="!btnGuardar" class="fa-solid fa-plus me-1" aria-hidden="true" />Agregar
+				<div class="col-12 col-md">
+					<template v-if="form.tipo === 'unidad'">
+						<select
+							v-if="disponibles.length > 0"
+							ref="unidad"
+							v-model="form.unidad_medida_id"
+							class="form-select"
+							aria-label="Unidad de la presentación"
+							required
+						>
+							<option :value="null" disabled>Seleccionar unidad...</option>
+							<option
+								v-for="u in disponibles"
+								:key="u.unidad_medida_id"
+								:value="String(u.unidad_medida_id)"
+								:disabled="u.factor === null"
+							>
+								{{ u.nombre }} · {{ textoEquivalencia(u) }}{{ u.factor === null ? ' (no cabe entera)' : '' }}
+							</option>
+						</select>
+						<div v-else class="small text-body-secondary">
+							No hay unidades con equivalencia a {{ unidad?.nombre ?? 'esta unidad' }}.
+							<router-link to="/unidad_medida">Regístrelas en Unidades de medida</router-link>.
+						</div>
 					</template>
-					<template v-else>
-						<i v-if="!btnGuardar" class="fa-solid fa-floppy-disk me-1" aria-hidden="true" />Guardar
-					</template>
-				</button>
+
+					<div v-else class="row g-2">
+						<div class="col-12 col-sm-6">
+							<input
+								ref="nombre"
+								v-model="form.nombre"
+								type="text"
+								class="form-control"
+								maxlength="50"
+								placeholder="Ej. Caja 12"
+								aria-label="Nombre del empaque"
+								required
+							>
+						</div>
+						<div class="col-12 col-sm-6">
+							<div class="input-group">
+								<span class="input-group-text">Contiene</span>
+								<input
+									v-model.number="form.factor"
+									type="number"
+									class="form-control text-end"
+									min="1.00001"
+									step="any"
+									aria-label="Unidades que contiene el empaque"
+									required
+								>
+								<span class="input-group-text">{{ unidad?.codigo ?? '' }}</span>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="col-12 col-md-auto d-flex justify-content-end gap-2">
+					<button
+						v-if="reg !== ''"
+						type="button"
+						class="btn btn-outline-secondary"
+						:disabled="btnGuardar"
+						@click="cancelarEdicion"
+					>
+						<i class="fa-solid fa-xmark me-1" aria-hidden="true" />Cancelar
+					</button>
+					<button
+						type="submit"
+						class="btn btn-primary"
+						:disabled="btnGuardar || (form.tipo === 'unidad' && disponibles.length === 0)"
+					>
+						<span v-if="btnGuardar" class="spinner-border spinner-border-sm me-1" aria-hidden="true" />
+						<template v-if="reg === ''">
+							<i v-if="!btnGuardar" class="fa-solid fa-plus me-1" aria-hidden="true" />Agregar
+						</template>
+						<template v-else>
+							<i v-if="!btnGuardar" class="fa-solid fa-floppy-disk me-1" aria-hidden="true" />Guardar
+						</template>
+					</button>
+				</div>
 			</div>
-			<div class="form-text mb-0">{{ ayuda }}</div>
+			<div class="form-text mt-2 mb-0">{{ ayuda }}</div>
 		</form>
 	</template>
 </template>

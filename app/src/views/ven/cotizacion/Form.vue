@@ -47,6 +47,20 @@
 					</div>
 				</div>
 
+				<!-- Atajos de validez desde hoy -->
+				<div v-if="editable" class="col-6 d-flex align-items-start gap-1" style="padding-top: 2rem">
+					<button
+						v-for="d in plazos"
+						:key="d"
+						type="button"
+						class="btn btn-sm flex-fill px-1"
+						:class="diasValidez === d ? 'btn-outline-primary active' : 'btn-outline-secondary'"
+						:aria-pressed="diasValidez === d"
+						:title="`Válida ${d} días desde hoy`"
+						@click="form.valida_hasta = sumarDias(fechaHoy, d)"
+					>{{ d }} d</button>
+				</div>
+
 				<div class="col-6">
 					<label for="selectFormaPagoCot" class="form-label">Forma de pago</label>
 					<select id="selectFormaPagoCot" v-model="form.forma_pago_id" class="form-select">
@@ -80,36 +94,51 @@
 				</div>
 			</div>
 
-			<div class="mb-3">
-				<label for="inputReferencia" class="form-label">Referencia</label>
-				<input
-					id="inputReferencia"
-					v-model="form.referencia"
-					type="text"
-					class="form-control"
-					maxlength="300"
-					placeholder="Proyecto bodega norte"
-				>
-			</div>
+			<!-- Textos que se llenan pocas veces: plegados para no alargar el panel (abiertos si tienen algo) -->
+			<button
+				type="button"
+				class="btn btn-link text-decoration-none text-body fw-semibold d-flex align-items-center gap-2 w-100 px-0 border-top rounded-0 pt-3 mb-2"
+				:aria-expanded="verNotas"
+				aria-controls="cotizacionNotas"
+				@click="verNotas = !verNotas"
+			>
+				<i class="fa-solid fa-fw" :class="verNotas ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true" />
+				<span class="me-auto text-start">Referencia y condiciones</span>
+				<span class="small fw-normal text-body-secondary">Salen en el PDF</span>
+			</button>
 
-			<div class="mb-3">
-				<label for="inputCondiciones" class="form-label">Condiciones</label>
-				<EditorTexto
-					id="inputCondiciones"
-					v-model="form.condiciones"
-					:disabled="!editable"
-					placeholder="Entrega en 3 días hábiles. Precios sujetos a existencia."
-				/>
-				<div class="form-text">Se imprimen en la cotización.</div>
-			</div>
+			<div v-show="verNotas" id="cotizacionNotas">
+				<div class="mb-3">
+					<label for="inputReferencia" class="form-label">Referencia</label>
+					<input
+						id="inputReferencia"
+						v-model="form.referencia"
+						type="text"
+						class="form-control"
+						maxlength="300"
+						placeholder="Proyecto bodega norte"
+					>
+				</div>
 
-			<div class="mb-3">
-				<label for="inputObservaciones" class="form-label">Observaciones</label>
-				<EditorTexto
-					id="inputObservaciones"
-					v-model="form.observaciones"
-					:disabled="!editable"
-				/>
+				<div class="mb-3">
+					<label for="inputCondiciones" class="form-label">Condiciones</label>
+					<EditorTexto
+						id="inputCondiciones"
+						v-model="form.condiciones"
+						:disabled="!editable"
+						placeholder="Entrega en 3 días hábiles. Precios sujetos a existencia."
+					/>
+					<div class="form-text">Se imprimen en la cotización.</div>
+				</div>
+
+				<div class="mb-3">
+					<label for="inputObservaciones" class="form-label">Observaciones</label>
+					<EditorTexto
+						id="inputObservaciones"
+						v-model="form.observaciones"
+						:disabled="!editable"
+					/>
+				</div>
 			</div>
 
 			<div v-if="editable" class="d-grid">
@@ -177,7 +206,11 @@
 			EditorTexto
 		},
 		data: () => ({
-			cliente: null
+			cliente: null,
+			// Referencia, condiciones y observaciones a la vista
+			verNotas: false,
+			// Atajos de validez, en días desde hoy
+			plazos: [7, 15, 30]
 		}),
 		created() {
 			this.url   = "ven/cotizacion"
@@ -202,6 +235,7 @@
 		methods: {
 			cargar() {
 				this.setDataForm(this.cotizacion)
+				this.verNotas = Boolean(this.cotizacion.referencia || this.cotizacion.condiciones || this.cotizacion.observaciones)
 
 				this.form.forma_pago_id   = this.cotizacion.forma_pago_id ? String(this.cotizacion.forma_pago_id) : null
 				this.form.moneda_id       = String(this.cotizacion.moneda_id)

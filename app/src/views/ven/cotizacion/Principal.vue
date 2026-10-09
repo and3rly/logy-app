@@ -143,62 +143,78 @@
 	<template v-else>
 		<PageHeader>
 			<button type="button" class="btn btn-outline-secondary" @click="regresar">
-				<i class="fa-solid fa-arrow-left me-1" aria-hidden="true" />Volver a cotizaciones
+				<i class="fa-solid fa-arrow-left me-1" aria-hidden="true" />Cotizaciones
 			</button>
 			<template v-if="reg !== ''">
-				<button type="button" class="btn btn-suave-info" :disabled="imprimiendo !== null" @click="imprimir(cotizacion)">
+				<button type="button" class="btn btn-outline-secondary" :disabled="imprimiendo !== null" @click="imprimir(cotizacion)">
 					<span v-if="imprimiendo !== null" class="spinner-border spinner-border-sm me-1" aria-hidden="true" />
 					<i v-else class="fa-solid fa-print me-1" aria-hidden="true" />PDF
 				</button>
-				<button type="button" class="btn btn-suave-success" :disabled="btnEstado" title="Nueva cotización en borrador con los mismos datos y productos" @click="duplicar">
-					<i class="fa-regular fa-copy me-1" aria-hidden="true" />Duplicar
-				</button>
-				<button v-if="anulable" type="button" class="btn btn-suave-danger" :disabled="btnEstado" @click="pedirAnular">
-					<i class="fa-solid fa-ban me-1" aria-hidden="true" />Anular
-				</button>
-				<button v-if="estado === 'ENVIADA'" type="button" class="btn btn-suave-warning" :disabled="btnEstado" @click="pedir('rechazar')">
-					<i class="fa-solid fa-thumbs-down me-1" aria-hidden="true" />Marcar rechazada
-				</button>
+
+				<!-- Acciones poco frecuentes en un menú; a la vista solo la del siguiente paso -->
+				<div class="dropdown">
+					<button
+						type="button"
+						class="btn btn-outline-secondary dropdown-toggle"
+						data-bs-toggle="dropdown"
+						aria-expanded="false"
+						:disabled="btnEstado"
+					>
+						<i class="fa-solid fa-ellipsis me-1" aria-hidden="true" />Más
+					</button>
+					<ul class="dropdown-menu dropdown-menu-end">
+						<li>
+							<button type="button" class="dropdown-item" @click="duplicar">
+								<i class="fa-regular fa-copy fa-fw me-2 text-body-secondary" aria-hidden="true" />Duplicar
+								<div class="small text-body-secondary ms-4 ps-2">Nuevo borrador con los mismos productos</div>
+							</button>
+						</li>
+						<li v-if="estado === 'ENVIADA'">
+							<button type="button" class="dropdown-item" @click="pedir('rechazar')">
+								<i class="fa-solid fa-thumbs-down fa-fw me-2 text-body-secondary" aria-hidden="true" />Marcar rechazada
+							</button>
+						</li>
+						<template v-if="anulable">
+							<li><hr class="dropdown-divider"></li>
+							<li>
+								<button type="button" class="dropdown-item text-danger" @click="pedirAnular">
+									<i class="fa-solid fa-ban fa-fw me-2" aria-hidden="true" />Anular
+								</button>
+							</li>
+						</template>
+					</ul>
+				</div>
+
 				<button v-if="estado === 'ENVIADA'" type="button" class="btn btn-primary" :disabled="btnEstado || vencida" :title="vencida ? 'Vencida: duplíquela para cotizar de nuevo' : null" @click="pedir('aceptar')">
 					<i class="fa-solid fa-thumbs-up me-1" aria-hidden="true" />Marcar aceptada
 				</button>
 				<button v-if="estado === 'ACEPTADA' && Number(cotizacion?.anulado) === 0" type="button" class="btn btn-primary" :disabled="btnEstado || vencida" :title="vencida ? 'Vencida: duplíquela para cotizar de nuevo' : null" @click="pedirConvertir">
 					<i class="fa-solid fa-cash-register me-1" aria-hidden="true" />Convertir en venta
 				</button>
-				<button v-if="estado === 'BORRADOR'" type="button" class="btn btn-primary" :disabled="btnEstado || lineas === 0" @click="pedir('enviar')">
+				<button
+					v-if="estado === 'BORRADOR' && Number(cotizacion?.anulado) === 0"
+					type="button"
+					class="btn btn-primary"
+					:disabled="btnEstado || lineas === 0"
+					:title="lineas === 0 ? 'Agregue al menos un producto' : null"
+					@click="pedir('enviar')"
+				>
 					<i class="fa-solid fa-paper-plane me-1" aria-hidden="true" />Enviar al cliente
 				</button>
 			</template>
 		</PageHeader>
 
-		<!-- Avance de la cotización -->
+		<!-- Número, estado y avance -->
 		<card class="mb-3">
-			<card-body class="py-2">
-				<div class="d-flex flex-wrap align-items-center gap-3">
-					<div class="d-flex align-items-center gap-2 me-auto">
-						<span class="font-monospace fw-semibold fs-5 text-body">{{ cotizacion?.numero ?? 'Nueva cotización' }}</span>
-						<span
-							v-if="cotizacion"
-							class="badge rounded-1 fw-semibold etiqueta-color"
-							:style="estiloEtiqueta(etiquetaEstado(cotizacion.eestado))"
-						>{{ cotizacion.nestado }}</span>
-						<span v-if="vencida" class="badge rounded-1 bg-danger-subtle text-danger-emphasis">Vencida</span>
-					</div>
-
-					<ol class="list-unstyled d-flex flex-wrap gap-2 mb-0 small" aria-label="Avance de la cotización">
-						<!-- Cada paso con el color de su estado: hechos con ✓, el actual resaltado, los pendientes en gris -->
-						<li
-							v-for="(p, n) in pasos"
-							:key="p.texto"
-							class="d-flex align-items-center gap-2 px-2 py-1 rounded-2 border"
-							:class="p.alcanzado ? ['etiqueta-color', { 'fw-semibold border-2': p.actual }] : 'text-body-tertiary'"
-							:style="p.alcanzado ? estiloEtiqueta(p.color) : null"
-							:aria-current="p.actual ? 'step' : null"
-						>
-							<i v-if="p.alcanzado && !p.actual" class="fa-solid fa-check" aria-hidden="true" />
-							<span v-else class="fw-semibold">{{ n + 1 }}</span>{{ p.texto }}
-						</li>
-					</ol>
+			<card-body class="py-3">
+				<div class="d-flex flex-wrap align-items-center gap-2">
+					<span class="font-monospace fw-semibold fs-5 text-body">{{ cotizacion?.numero ?? 'Nueva cotización' }}</span>
+					<span
+						v-if="cotizacion"
+						class="badge rounded-1 fw-semibold etiqueta-color"
+						:style="estiloEtiqueta(etiquetaEstado(cotizacion.eestado))"
+					>{{ cotizacion.nestado }}</span>
+					<span v-if="vencida" class="badge rounded-1 bg-danger-subtle text-danger-emphasis">Vencida</span>
 				</div>
 
 				<div v-if="cotizacion" class="small text-body-secondary mt-1">
@@ -209,6 +225,28 @@
 					<template v-if="cotizacion.fecha_rechazo"> · Rechazada el {{ formatoFecha(cotizacion.fecha_rechazo, true) }}</template>
 					<template v-if="cotizacion.venta_correlativo"> · Venta {{ cotizacion.venta_correlativo }}</template>
 				</div>
+
+				<!-- Pasos unidos por una línea: hechos con ✓, el actual resaltado con el color de su estado, los pendientes en gris -->
+				<ol class="cotizacion-pasos list-unstyled d-flex align-items-center mb-0 mt-3 small" aria-label="Avance de la cotización">
+					<template v-for="(p, n) in pasos" :key="p.texto">
+						<li v-if="n > 0" class="cotizacion-pasos-linea" :class="{ alcanzada: p.alcanzado }" aria-hidden="true" />
+						<li
+							class="d-flex align-items-center gap-2 text-nowrap"
+							:class="p.alcanzado ? 'text-body' : 'text-body-tertiary'"
+							:aria-current="p.actual ? 'step' : null"
+						>
+							<span
+								class="cotizacion-pasos-numero rounded-circle border"
+								:class="{ 'etiqueta-color fw-semibold': p.alcanzado, 'border-2': p.actual }"
+								:style="p.alcanzado ? estiloEtiqueta(p.color) : null"
+							>
+								<i v-if="p.alcanzado && !p.actual" class="fa-solid fa-check" aria-hidden="true" />
+								<template v-else>{{ n + 1 }}</template>
+							</span>
+							<span class="d-none d-sm-inline" :class="{ 'fw-semibold': p.actual }">{{ p.texto }}</span>
+						</li>
+					</template>
+				</ol>
 			</card-body>
 		</card>
 
@@ -244,27 +282,7 @@
 		</div>
 
 		<div class="row g-3 align-items-start">
-			<!-- Datos de la cotización -->
-			<div class="col-12 col-xl-4">
-				<card>
-					<card-header>Datos de la cotización</card-header>
-					<card-body>
-						<Form
-							:key="`form-${apertura}`"
-							:cotizacion="cotizacion"
-							:pk="reg"
-							:catalogo="catalogo"
-							:moneda-defecto="monedaDefecto"
-							:fecha-hoy="fechaHoy"
-							:dias-defecto="diasValidez"
-							:editable="editable"
-							@actualizar="actualizar"
-						/>
-					</card-body>
-				</card>
-			</div>
-
-			<!-- Productos y totales -->
+			<!-- Productos: lo que más se trabaja, al ancho mayor -->
 			<div class="col-12 col-xl-8">
 				<card>
 					<card-header>Productos</card-header>
@@ -282,12 +300,64 @@
 							:lista-precio-id="cotizacion?.lista_precio_id ?? null"
 							@cotizacion="actualizarTotales"
 							@lineas="lineas = $event"
+							@resumen="resumen = $event"
 							@producto-creado="productoCreado"
 						/>
 						<div v-else class="text-center text-body-secondary p-5">
 							<div class="fs-3 mb-2 opacity-50"><i class="fa-solid fa-file-invoice-dollar" aria-hidden="true" /></div>
-							Complete los datos de la cotización y pulse <strong>Guardar</strong> para agregar productos.
+							Elija el cliente y la validez y pulse <strong>Guardar</strong> para agregar productos.
 						</div>
+					</card-body>
+				</card>
+			</div>
+
+			<!-- Panel lateral: resumen y datos de la cotización -->
+			<div class="col-12 col-xl-4 d-flex flex-column gap-3">
+				<card v-if="reg !== '' && resumen">
+					<card-body>
+						<div class="small text-body-secondary">{{ lineas }} {{ lineas === 1 ? 'producto' : 'productos' }}</div>
+						<template v-if="resumen.descuento > 0">
+							<div class="d-flex justify-content-between small text-body-secondary mt-1">
+								<span>Subtotal</span><span class="text-nowrap">{{ cotizacion?.smoneda }} {{ formatoMonto(resumen.subtotal) }}</span>
+							</div>
+							<div class="d-flex justify-content-between small text-body-secondary">
+								<span>Descuento</span><span class="text-nowrap">- {{ cotizacion?.smoneda }} {{ formatoMonto(resumen.descuento) }}</span>
+							</div>
+						</template>
+						<div class="d-flex justify-content-between align-items-baseline fs-4 fw-bold text-body border-top mt-2 pt-2">
+							<span>Total</span><span class="text-nowrap">{{ cotizacion?.smoneda }} {{ formatoMonto(resumen.total) }}</span>
+						</div>
+
+						<!-- Solo para el vendedor: no sale en el PDF -->
+						<div
+							class="d-flex justify-content-between gap-2 small text-body-secondary bg-body-tertiary rounded-2 px-2 py-1 mt-2"
+							title="Total menos el costo de los productos; no sale en la cotización"
+						>
+							<span><i class="fa-solid fa-lock me-1" aria-hidden="true" />Ganancia estimada (interna)</span>
+							<span class="text-nowrap">{{ cotizacion?.smoneda }} {{ formatoMonto(resumen.ganancia) }}</span>
+						</div>
+
+						<div v-if="resumen.faltantes > 0" class="small text-warning-emphasis mt-2">
+							<i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true" />{{ resumen.faltantes }}
+							{{ resumen.faltantes === 1 ? 'producto' : 'productos' }} sin existencia suficiente (solo aviso)
+						</div>
+					</card-body>
+				</card>
+
+				<card>
+					<card-header>Datos de la cotización</card-header>
+					<card-body>
+						<Form
+							:key="`form-${apertura}`"
+							:cotizacion="cotizacion"
+							:pk="reg"
+							:catalogo="catalogo"
+							:moneda-defecto="monedaDefecto"
+							:fecha-hoy="fechaHoy"
+							:dias-defecto="diasValidez"
+							:editable="editable"
+							@actualizar="actualizar"
+						/>
 					</card-body>
 				</card>
 			</div>
@@ -444,6 +514,8 @@
 			accion: null,
 			btnEstado: false,
 			lineas: 0,
+			// Totales en vivo que calcula el detalle mientras se edita
+			resumen: null,
 			motivo: "",
 			errorMotivo: "",
 			modalAnular: null,
@@ -495,12 +567,14 @@
 				this.cotizacion = null
 				this.reg        = ""
 				this.lineas     = 0
+				this.resumen    = null
 				this.apertura++
 				this.verDocumento = true
 			},
 			abrir(obj) {
 				this.cotizacion = obj
 				this.lineas     = 0
+				this.resumen    = null
 				this.setDataForm(obj)
 				this.apertura++
 				this.verDocumento = true

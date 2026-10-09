@@ -146,6 +146,52 @@
 					</card>
 				</section>
 
+				<!-- Formato de impresión -->
+				<section id="seccion-impresion" ref="impresion" style="scroll-margin-top: calc(var(--navbar-alto) + 1rem)">
+					<card>
+						<card-header>
+							<div class="d-flex align-items-center gap-3">
+								<span class="icono-suave icono-suave-primario" aria-hidden="true">
+									<i class="fa-solid fa-print" />
+								</span>
+								<div class="lh-sm">
+									<div class="fw-semibold">Formato de impresión</div>
+									<small class="text-body-secondary fw-normal">Tamaño de papel con el que se imprimen las ventas.</small>
+								</div>
+							</div>
+						</card-header>
+						<card-body>
+							<div class="row g-2" role="radiogroup" aria-label="Formato de impresión">
+								<div v-for="f in impresiones" :key="f.valor" class="col-sm-6">
+									<input
+										:id="`impresion_${f.valor}`"
+										v-model="form.formato_impresion"
+										type="radio"
+										class="btn-check"
+										name="formato_impresion"
+										:value="f.valor"
+									>
+									<label
+										:for="`impresion_${f.valor}`"
+										class="btn btn-outline-primary w-100 h-100 d-flex align-items-center gap-3 py-2 px-3 text-start"
+									>
+										<i :class="f.icono" class="fa-fw fs-5" aria-hidden="true" />
+										<span class="flex-grow-1 lh-sm">
+											<span class="d-block fw-semibold">{{ f.titulo }}</span>
+											<small class="opacity-75">{{ f.descripcion }}</small>
+										</span>
+										<i
+											v-if="f.valor === String(form.formato_impresion)"
+											class="fa-solid fa-circle-check"
+											aria-hidden="true"
+										/>
+									</label>
+								</div>
+							</div>
+						</card-body>
+					</card>
+				</section>
+
 				<!-- Correlativos -->
 				<section id="seccion-correlativos" ref="correlativos" style="scroll-margin-top: calc(var(--navbar-alto) + 1rem)">
 					<card>
@@ -245,6 +291,7 @@
 	const CAMPOS = [
 		"moneda_id",
 		"decimal_monto",
+		"formato_impresion",
 		"abr_producto",
 		"abr_cotizacion",
 		"abr_compra",
@@ -278,6 +325,11 @@
 			formatos: [
 				{ campo: "decimal_monto", titulo: "Montos", descripcion: "Precios, costos y totales." }
 			],
+			// Valores de empresa_parametro.formato_impresion (constantes IMPRESION_* de Empresa_parametro_model)
+			impresiones: [
+				{ valor: "1", titulo: "Ticket", descripcion: "Rollo de 80 mm para impresora térmica.", icono: "fa-solid fa-receipt" },
+				{ valor: "2", titulo: "Carta", descripcion: "Hoja tamaño carta con el detalle completo.", icono: "fa-solid fa-file-lines" }
+			],
 			abreviaturas: [
 				{ campo: "abr_producto", texto: "Producto", descripcion: "Código de los productos nuevos.", ejemplo: "PRD", icono: "fa-solid fa-box" },
 				{ campo: "abr_cotizacion", texto: "Cotización", descripcion: "Cotizaciones a clientes.", ejemplo: "COT", icono: "fa-solid fa-file-invoice" },
@@ -296,6 +348,8 @@
 				for (let c of CAMPOS) {
 					this.fbase[c] = null
 				}
+
+				this.fbase.formato_impresion = "1"
 			} else {
 				this.setDataForm(this.parametro)
 			}
@@ -332,6 +386,9 @@
 			monedaActual() {
 				return this.monedas.find(m => String(m.id) === String(this.form.moneda_id)) ?? null
 			},
+			impresionActual() {
+				return this.impresiones.find(f => f.valor === String(this.form.formato_impresion)) ?? null
+			},
 			ejemploMonto() {
 				let simbolo = this.monedaActual ? `${this.monedaActual.simbolo} ` : ""
 				return `${simbolo}${this.formatear(1234.5678, this.form.decimal_monto)}`
@@ -358,6 +415,7 @@
 				return [
 					{ id: "moneda", titulo: "Moneda", icono: "fa-solid fa-coins", resumen: this.monedaActual ? this.monedaActual.nombre : "Sin definir" },
 					{ id: "formato", titulo: "Formato numérico", icono: "fa-solid fa-calculator", resumen: this.ejemploMonto },
+					{ id: "impresion", titulo: "Impresión", icono: "fa-solid fa-print", resumen: this.impresionActual ? this.impresionActual.titulo : "Ticket" },
 					{ id: "correlativos", titulo: "Correlativos", icono: "fa-solid fa-hashtag", resumen: `${definidas} de ${this.abreviaturas.length} definidos` }
 				]
 			}

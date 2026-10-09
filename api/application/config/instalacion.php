@@ -2560,6 +2560,15 @@ $config["instalacion"] = [
 			"orden" => 6,
 			"detalle" => 1,
 			"activo" => 1
+		],
+		[
+			"id" => 10,
+			"nombre" => "Reportes",
+			"icono" => "fa-solid fa-chart-column",
+			"url" => null,
+			"orden" => 7,
+			"detalle" => 1,
+			"activo" => 1
 		]
 	],
 
@@ -2743,6 +2752,15 @@ $config["instalacion"] = [
 			"orden" => 5,
 			"icono" => "fa-regular fa-circle",
 			"url" => "/conversion",
+			"activo" => 1
+		],
+		[
+			"id" => 21,
+			"modulo_id" => 10,
+			"nombre" => "Ventas por día",
+			"orden" => 1,
+			"icono" => "fa-regular fa-circle",
+			"url" => "/ventas-dia",
 			"activo" => 1
 		],
 		[

@@ -65,6 +65,16 @@ class Parametro extends CI_Controller {
 					}
 				}
 
+				# Formato de impresión de la venta: uno de los definidos en el modelo (sin dato = ticket)
+				$formatos = [
+					Empresa_parametro_model::IMPRESION_TICKET,
+					Empresa_parametro_model::IMPRESION_CARTA
+				];
+
+				$formato = property_exists($datos, "formato_impresion") ? trim((string)$datos->formato_impresion) : "";
+				$datos->formato_impresion = $formato === "" ? Empresa_parametro_model::IMPRESION_TICKET : (int)$formato;
+				$formatoValido = ($formato === "" || ctype_digit($formato)) && in_array($datos->formato_impresion, $formatos, true);
+
 				# Datos que no se toman del formulario (las cantidades no manejan decimales configurables)
 				unset($datos->id, $datos->empresa_id, $datos->activo, $datos->fecha, $datos->decimal_cantidad);
 
@@ -83,6 +93,8 @@ class Parametro extends CI_Controller {
 					$data["mensaje"] = "Seleccione una moneda activa de su empresa.";
 				} else if (!$decimalesValidos) {
 					$data["mensaje"] = "Los decimales deben ser 0, 1 o 2.";
+				} else if (!$formatoValido) {
+					$data["mensaje"] = "Seleccione un formato de impresión válido.";
 				} else if (count($abreviaturas) !== count(array_unique($abreviaturas))) {
 					$data["mensaje"] = "Las abreviaturas no se pueden repetir.";
 				} else {

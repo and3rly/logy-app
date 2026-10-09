@@ -477,6 +477,7 @@ CREATE TABLE `empresa_parametro` (
   `abr_recibo` varchar(5) DEFAULT NULL,
   `decimal_cantidad` int DEFAULT NULL,
   `decimal_monto` int DEFAULT NULL,
+  `formato_impresion` tinyint NOT NULL DEFAULT '1' COMMENT '1 = ticket 80 mm, 2 = carta',
   `activo` tinyint(1) NOT NULL DEFAULT '1',
   `fecha` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
