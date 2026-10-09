@@ -1,10 +1,12 @@
 <?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 
-# Presentación de un producto: cuántas unidades de medida contiene (factor), ej. Caja 12 = 12 UNIDAD
+# Presentación de un producto: cuántas unidades de medida contiene (factor), ej. Caja 12 = 12 UNIDAD.
+# Con unidad_medida_id es otra unidad con equivalencia (Libra en un producto en Quintal, factor 0.01)
 class Producto_presentacion_model extends Centro_model {
 
 	public $nombre;
 	public $factor;
+	public $unidad_medida_id = null;
 	public $activo = 1;
 	public $producto_id;
 	public $usuario_id;

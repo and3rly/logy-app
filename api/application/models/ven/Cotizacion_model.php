@@ -19,6 +19,7 @@ class Cotizacion_model extends Centro_model {
 	public $vendedor_id = null;
 	public $moneda_id;
 	public $cliente_id = null;
+	public $lista_precio_id = null;
 	public $forma_pago_id = null;
 	public $cotizacion_estado_id;
 	public $cotizacion_serie_id;
@@ -91,6 +92,7 @@ class Cotizacion_model extends Centro_model {
 			f.nombre as nusuario,
 			g.id as venta_id,
 			g.correlativo as venta_correlativo,
+			h.nombre as nlista_precio,
 			datediff(a.valida_hasta, curdate()) as dias_restantes,
 			(a.valida_hasta < curdate() and d.codigo in ('BORRADOR', 'ENVIADA', 'ACEPTADA')) as vencida", false)
 		->from("cotizacion a")
@@ -100,6 +102,7 @@ class Cotizacion_model extends Centro_model {
 		->join("sucursal e", "e.id = a.sucursal_id")
 		->join("usuario f", "f.id = a.usuario_id")
 		->join("venta g", "g.cotizacion_id = a.id", "left")
+		->join("lista_precio h", "h.id = a.lista_precio_id", "left")
 		->where("a.empresa_id", $this->_ses->empresa_id)
 		->where("a.sucursal_id", $this->_ses->sucursal_id)
 		->order_by("a.fecha", "desc")
@@ -198,6 +201,24 @@ class Cotizacion_model extends Centro_model {
 
 		if ($cliente === false) {
 			return false;
+		}
+
+		# Lista de precios: la elegida en el encabezado (null = precio general); sin indicarla, la del cliente.
+		# Una nueva debe estar activa; la que ya tenía se conserva aunque se haya desactivado
+		if (property_exists($datos, "lista_precio_id")) {
+			$lista = $datos->lista_precio_id ?: null;
+
+			if ($lista &&
+				(string)$lista !== (string)$this->lista_precio_id &&
+				!$this->catalogo->verListasPrecio([
+					"id" => $lista,
+					"_uno" => true
+				])) {
+				$this->setMensaje("La lista de precios no existe o está inactiva.");
+				return false;
+			}
+
+			$cliente["lista_precio_id"] = $lista;
 		}
 
 		$campos = array_merge($cliente, [
@@ -365,10 +386,17 @@ class Cotizacion_model extends Centro_model {
 	{
 		$nueva = new Cotizacion_model();
 
+		# La misma lista de precios, si sigue activa
+		$lista = $this->lista_precio_id ? $this->catalogo->verListasPrecio([
+			"id" => $this->lista_precio_id,
+			"_uno" => true
+		]) : null;
+
 		$this->db->trans_begin();
 
 		$creada = $nueva->guardarEncabezado((object)[
 			"cliente_id" => $this->cliente_id,
+			"lista_precio_id" => $lista ? $lista->id : null,
 			"moneda_id" => $this->moneda_id,
 			"forma_pago_id" => $this->forma_pago_id,
 			"valida_hasta" => date("Y-m-d", strtotime("+" . self::DIAS_VALIDEZ . " days")),
@@ -480,6 +508,7 @@ class Cotizacion_model extends Centro_model {
 		$registrada = $venta->registrar((object)[
 			"cliente_id" => $this->cliente_id,
 			"cotizacion_id" => $this->getPK(),
+			"lista_precio_id" => $this->lista_precio_id,
 			"venta_serie_id" => verPropiedad($datos, "venta_serie_id"),
 			"forma_pago_id" => verPropiedad($datos, "forma_pago_id"),
 			"moneda_id" => $this->moneda_id,
@@ -556,6 +585,7 @@ class Cotizacion_model extends Centro_model {
 		if (!$clienteId) {
 			return [
 				"cliente_id" => null,
+				"lista_precio_id" => null,
 				"cliente_nombre" => "Consumidor final",
 				"cliente_razon_social" => null,
 				"cliente_identificacion" => "CF",
@@ -575,8 +605,15 @@ class Cotizacion_model extends Centro_model {
 			return false;
 		}
 
+		# La lista del cliente, solo si está activa (si no, se cotiza al precio general)
+		$lista = $cliente->lista_precio_id ? $this->catalogo->verListasPrecio([
+			"id" => $cliente->lista_precio_id,
+			"_uno" => true
+		]) : null;
+
 		return [
 			"cliente_id" => $cliente->id,
+			"lista_precio_id" => $lista ? $lista->id : null,
 			"cliente_nombre" => mb_substr($cliente->nombre, 0, 150),
 			"cliente_razon_social" => $cliente->razon_social ? mb_substr($cliente->razon_social, 0, 150) : null,
 			"cliente_identificacion" => $cliente->identificacion ? mb_substr($cliente->identificacion, 0, 20) : "CF",

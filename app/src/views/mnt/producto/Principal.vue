@@ -41,7 +41,7 @@
 					</span>
 				</div>
 
-				<div class="table-responsive">
+				<div class="table-responsive tabla-pantalla">
 					<table class="table table-sm table-hover mb-0">
 						<thead>
 							<tr>
@@ -194,6 +194,7 @@
 							:pk="reg"
 							:unidad="unidadProducto"
 							:presentaciones="ficha.presentaciones"
+							:unidades="ficha.unidades"
 							@cambio="ficha.presentaciones = $event"
 						/>
 					</card-body>
@@ -249,7 +250,8 @@
 			cargandoFicha: false,
 			ficha: {
 				presentaciones: [],
-				existencias: []
+				existencias: [],
+				unidades: []
 			}
 		}),
 		created() {
@@ -260,7 +262,7 @@
 			nuevo() {
 				this.producto = null
 				this.reg      = ""
-				this.ficha    = { presentaciones: [], existencias: [] }
+				this.ficha    = { presentaciones: [], existencias: [], unidades: [] }
 				this.apertura++
 				this.verFicha = true
 				window.scrollTo(0, 0)
@@ -279,7 +281,8 @@
 				this.producto = null
 				this.reg      = ""
 			},
-			// Guardado: si es nuevo, la ficha queda abierta para agregar presentaciones
+			// Guardado: si es nuevo, la ficha queda abierta para agregar presentaciones.
+			// La ficha se vuelve a leer: las unidades para presentaciones dependen de la unidad del producto
 			actualizar(reg) {
 				let nuevo = this.reg === ""
 				this.setDataRegistro("producto", reg)
@@ -288,6 +291,8 @@
 					this.producto = this.lista.find(e => String(e.id) === String(reg.id)) ?? reg
 					this.reg      = String(reg.id)
 				}
+
+				this.getFicha()
 			},
 			// Presentaciones y existencia en la sucursal: solo lo que no viene en la lista
 			getFicha() {
@@ -298,11 +303,12 @@
 				.then(result => {
 					this.ficha = {
 						presentaciones: result.data.presentaciones ?? [],
-						existencias: result.data.existencias ?? []
+						existencias: result.data.existencias ?? [],
+						unidades: result.data.unidades ?? []
 					}
 				})
 				.catch(e => {
-					this.ficha = { presentaciones: [], existencias: [] }
+					this.ficha = { presentaciones: [], existencias: [], unidades: [] }
 					this.$toast.error(mensajeError(e))
 				})
 				.finally(() => {

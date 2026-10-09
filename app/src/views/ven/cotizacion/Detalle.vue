@@ -45,6 +45,12 @@
 		</button>
 	</form>
 
+	<!-- Cliente con lista de precios: los productos que se agregan toman el precio de la lista -->
+	<div v-if="editable && nlistaPrecio" class="px-3 py-2 border-bottom small text-body-secondary">
+		<i class="fa-solid fa-tags text-primary me-1" aria-hidden="true" />Precios de la lista <span class="fw-semibold text-body">{{ nlistaPrecio }}</span>;
+		lo que no está en ella va al precio general.
+	</div>
+
 	<!-- Nuevo producto: el mismo formulario del mantenimiento de productos -->
 	<Teleport to="body">
 		<div
@@ -186,7 +192,7 @@
 										<td class="text-end" :class="Number(articuloCatalogo(p).existencia) > 0 ? 'text-body-secondary' : 'text-danger-emphasis'">
 											{{ formatoCantidad(articuloCatalogo(p).existencia) }}
 										</td>
-										<td class="text-end">{{ formatoMonto(articuloCatalogo(p).precio) }}</td>
+										<td class="text-end">{{ formatoMonto(precioCatalogo(p)) }}</td>
 										<td class="text-end">
 											<input
 												v-model="cantidades[p.producto_id]"
@@ -436,6 +442,12 @@
 				required: false,
 				default: true,
 			},
+			// Lista de precios de la cotización (la del cliente); null = precio general
+			listaPrecioId: {
+				type: [String, Number],
+				required: false,
+				default: null,
+			},
 		},
 		emits: ["cotizacion", "lineas", "producto-creado"],
 		components: {
@@ -452,13 +464,18 @@
 			nuevoProductoAbierto: false,
 			aperturaProducto: 0,
 			// Líneas con la nota abierta aunque todavía esté vacía
-			notas: {}
+			notas: {},
+			// Precios de la lista: { "producto-presentación": precio }; vacío = precio general
+			precios: {},
+			nlistaPrecio: null,
+			consultaPrecios: 0
 		}),
 		created() {
 			this.url   = "ven/cotizacion_detalle"
 			this.autoBuscar = false
 
 			this.cargarDetalle()
+			this.cargarPrecios()
 		},
 		mounted() {
 			if (this.$refs.catalogo) {
@@ -517,7 +534,7 @@
 				this.agregar(p)
 			},
 			// Si el producto (en esa presentación) ya está en la cotización se suma a su línea; si no, se agrega
-			// con su precio de venta (el de la presentación: precio del producto por su factor)
+			// con su precio de venta (el de la lista del cliente o el general; ver precioVenta)
 			agregar(p, cantidad = 1, enfocar = true, presentacionId = null) {
 				if (this.btnGuardar) {
 					return Promise.resolve(false)
@@ -552,7 +569,7 @@
 					producto_id: p.producto_id,
 					producto_presentacion_id: pre?.producto_presentacion_id ?? null,
 					cantidad,
-					precio: Number((pre ?? p).precio ?? 0),
+					precio: this.precioVenta(p, pre),
 					descuento_porcentaje: 0
 				})
 				.then(result => {
@@ -653,13 +670,52 @@
 			articuloCatalogo(p) {
 				return this.presentacionDe(p.producto_id, this.presentacionesCatalogo[p.producto_id]) ?? p
 			},
+			precioCatalogo(p) {
+				return this.precioVenta(p, this.presentacionDe(p.producto_id, this.presentacionesCatalogo[p.producto_id]))
+			},
+			// Precio de la lista de la cotización para el producto en esa presentación (null = unidad) o,
+			// si no está en la lista, el general (el de la presentación: precio del producto por su factor)
+			precioVenta(p, pre) {
+				let precio = this.precios[`${p.producto_id}-${pre?.producto_presentacion_id ?? 0}`]
+				return precio ?? Number((pre ?? p).precio ?? 0)
+			},
+			cargarPrecios() {
+				let consulta = ++this.consultaPrecios
+
+				if (!this.listaPrecioId) {
+					this.precios      = {}
+					this.nlistaPrecio = null
+					return
+				}
+
+				api
+				.get(`/mnt/lista_precio/get_precios/${this.listaPrecioId}`)
+				.then(result => {
+					// Si mientras tanto cambió el cliente, esta respuesta ya no sirve
+					if (consulta !== this.consultaPrecios) {
+						return
+					}
+
+					let precios = {}
+
+					for (let f of result.data.lista ?? []) {
+						precios[`${f.producto_id}-${f.producto_presentacion_id ?? 0}`] = Number(f.precio)
+					}
+
+					this.precios      = precios
+					this.nlistaPrecio = result.data.nombre ?? null
+				})
+				.catch(e => {
+					this.$toast.error(mensajeError(e, "No se pudieron cargar los precios de la lista del cliente."))
+				})
+			},
 			// Otra presentación: toma el precio de venta de la nueva y se guarda la fila
 			cambiarPresentacion(linea, presentacionId) {
 				let p = this.productos.find(e => String(e.producto_id) === String(linea.producto_id))
 				let pre = this.presentacionDe(linea.producto_id, presentacionId)
 
 				linea.producto_presentacion_id = pre ? pre.producto_presentacion_id : null
-				linea.precio = Number((pre ?? p)?.precio ?? linea.precio).toFixed(2)
+				linea.precio = p ? this.precioVenta(p, pre).toFixed(2) : linea.precio
 				this.guardarFila(linea)
 			},
 			nombreDe(lista, id) {
@@ -801,6 +857,12 @@
 			},
 			columnas() {
 				return this.editable ? 8 : 7
+			}
+		},
+		watch: {
+			// Al guardar otra lista en el encabezado cambian los precios (las líneas ya agregadas conservan el suyo)
+			listaPrecioId() {
+				this.cargarPrecios()
 			}
 		}
 	}

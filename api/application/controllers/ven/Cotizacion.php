@@ -15,7 +15,8 @@ class Cotizacion extends CI_Controller {
 			"Stock_model",
 			"Movimiento_model",
 			"fin/Cuenta_cobrar_model",
-			"mnt/Cliente_model"
+			"mnt/Cliente_model",
+			"mnt/Lista_precio_model"
 		]);
 		$this->load->model("Catalogo_model", "catalogo");
 		$this->output->set_content_type("application/json");
@@ -58,6 +59,8 @@ class Cotizacion extends CI_Controller {
 				"unidades"      => $this->catalogo->verUnidadesMedida(["_todos" => true]),
 				# Con la existencia de la sucursal, solo como referencia al cotizar
 				"productos"     => $this->Stock_model->existencias(),
+				# Incluye inactivas: una cotización puede conservar la suya
+				"listas_precio" => $this->catalogo->verListasPrecio(["_todos" => true]),
 				# Para crear un cliente desde la cotización
 				"municipios"    => $this->catalogo->verMunicipios(),
 				"departamentos" => $this->catalogo->verDepartamentos()

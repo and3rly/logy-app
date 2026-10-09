@@ -16,9 +16,9 @@
 				</div>
 
 				<select v-model="bform.sentido" class="form-select w-auto" aria-label="Sentido" @change="buscar">
-					<option :value="null">Explosiones e implosiones</option>
-					<option value="EXPLOSION">Solo explosiones</option>
-					<option value="IMPLOSION">Solo implosiones</option>
+					<option :value="null">Todas las conversiones</option>
+					<option value="EXPLOSION">De presentación a unidad</option>
+					<option value="IMPLOSION">De unidad a presentación</option>
 				</select>
 
 				<div class="input-group flex-grow-1 w-auto">
@@ -56,7 +56,7 @@
 				</span>
 			</div>
 
-			<div class="table-responsive">
+			<div class="table-responsive tabla-pantalla">
 				<table class="table table-sm table-hover mb-0">
 					<thead>
 						<tr>
@@ -80,8 +80,8 @@
 							<td class="text-nowrap">
 								<i
 									class="fa-solid fa-fw me-1 text-primary"
-									:class="i.sentido === 'EXPLOSION' ? 'fa-box-open' : 'fa-box'"
-									:title="i.sentido === 'EXPLOSION' ? 'Explosión' : 'Implosión'"
+									:class="abierta(i) ? 'fa-box-open' : 'fa-box'"
+									:title="abierta(i) ? 'Abrir' : 'Armar'"
 									aria-hidden="true"
 								/>
 								<template v-if="i.sentido === 'EXPLOSION'">
@@ -221,6 +221,10 @@
 				this.lista.unshift(linea)
 				this.getProductos()
 				this.cerrar()
+			},
+			// Se abrió (de lo grande a lo pequeño) o se armó; con la presentación más pequeña que la unidad se invierte
+			abierta(i) {
+				return (i.sentido === "EXPLOSION") !== (Number(i.factor) < 1)
 			},
 			formatoMonto,
 			formatoCantidad,

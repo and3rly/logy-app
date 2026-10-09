@@ -11,6 +11,7 @@ class Movimiento_model extends Centro_model {
 	public $inventario_det_id = null;
 	public $venta_detalle_id = null;
 	public $inventario_conversion_id = null;
+	public $inventario_traslado_detalle_id = null;
 	public $usuario_id;
 	public $observacion = null;
 
@@ -57,7 +58,7 @@ class Movimiento_model extends Centro_model {
 			t.sentido,
 			s.fecha_vence,
 			u.nombre as nusuario,
-			coalesce(c.numero, ia.numero, ie.numero, v.correlativo, cv.numero) as documento", false)
+			coalesce(c.numero, ia.numero, ie.numero, v.correlativo, cv.numero, tr.numero) as documento", false)
 		->join("usuario u", "u.id = m.usuario_id")
 		->join("unidad_medida um", "um.id = s.unidad_medida_id")
 		->join("producto_presentacion pp", "pp.id = s.producto_presentacion_id", "left")
@@ -69,6 +70,8 @@ class Movimiento_model extends Centro_model {
 		->join("venta_detalle vd", "vd.id = m.venta_detalle_id", "left")
 		->join("venta v", "v.id = vd.venta_id", "left")
 		->join("inventario_conversion cv", "cv.id = m.inventario_conversion_id", "left")
+		->join("inventario_traslado_detalle trd", "trd.id = m.inventario_traslado_detalle_id", "left")
+		->join("inventario_traslado tr", "tr.id = trd.inventario_traslado_id", "left")
 		->order_by("m.fecha", "asc")
 		->order_by("m.id", "asc")
 		->get()

@@ -180,6 +180,34 @@
 			</template>
 		</div>
 
+		<!-- Precios: sin lista paga el precio general (solo desde el mantenimiento de clientes) -->
+		<template v-if="listasPrecio.length > 0">
+			<h6 class="d-flex align-items-center gap-2 fw-semibold text-body-secondary mb-2">
+				<i class="fa-solid fa-tags text-primary" aria-hidden="true" />Precios
+			</h6>
+			<div class="row g-2 mb-4">
+				<div class="col-12 col-md-6">
+					<label for="selectListaPrecio" class="form-label">Lista de precios</label>
+					<select
+						id="selectListaPrecio"
+						v-model="form.lista_precio_id"
+						class="form-select"
+					>
+						<option :value="null">Precio general</option>
+						<option
+							v-for="l in listasPrecio"
+							:key="l.id"
+							:value="String(l.id)"
+							:disabled="Number(l.activo) !== 1 && String(l.id) !== String(form.lista_precio_id)"
+						>{{ l.nombre }}{{ Number(l.activo) !== 1 ? ' (inactiva)' : '' }}</option>
+					</select>
+				</div>
+				<div class="col-12 col-md-6 d-flex align-items-end">
+					<div class="form-text mb-2">Lo que no está en la lista se le cobra al precio general.</div>
+				</div>
+			</div>
+		</template>
+
 		<div class="mb-4" v-if="reg !== ''">
 			<div class="form-check form-switch">
 				<input
@@ -247,6 +275,11 @@
 				required: false,
 				default: () => [],
 			},
+			listasPrecio: {
+				type: Array,
+				required: false,
+				default: () => [],
+			},
 		},
 		mixins: [Accion],
 		data: () => ({
@@ -263,6 +296,7 @@
 				this.fbase.credito      = 0
 				this.fbase.credito_dias = 0
 				this.fbase.municipio_id = null
+				this.fbase.lista_precio_id = null
 			} else {
 				this.setDataForm(this.cliente)
 				this.ubicarDepartamento()

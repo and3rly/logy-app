@@ -110,7 +110,7 @@
 													<span
 														v-if="enAjuste(p)"
 														class="badge border rounded-1 fw-semibold bg-success-subtle text-success-emphasis border-success-subtle ms-1"
-													>En el ajuste: {{ enAjuste(p) }}</span>
+													>En el {{ documento }}: {{ enAjuste(p) }}</span>
 												</div>
 											</div>
 										</td>
@@ -154,8 +154,8 @@
 											<button
 												type="button"
 												class="btn btn-sm btn-primary"
-												title="Agregar al ajuste"
-												:aria-label="`Agregar ${p.nombre} al ajuste`"
+												:title="`Agregar al ${documento}`"
+												:aria-label="`Agregar ${p.nombre} al ${documento}`"
 												:disabled="btnGuardar"
 												@click="agregarDesdeCatalogo(p)"
 											>
@@ -282,7 +282,7 @@
 				<tr v-else-if="lista.length === 0">
 					<td :colspan="columnas" class="text-center text-body-secondary py-4">
 						<div class="fs-4 mb-2 opacity-50"><i class="fa-solid fa-boxes-stacked" aria-hidden="true" /></div>
-						Todavía no hay productos en este ajuste
+						Todavía no hay productos en este {{ documento }}
 					</td>
 				</tr>
 			</tbody>
@@ -299,13 +299,36 @@
 	import { formatoMonto, formatoCantidad } from '@/utils/numero'
 
 	export default {
+		// Lo usan los ajustes y los traslados (documento, urlDocumento, urlDetalle y campoDocumento)
 		name: "DetalleAjuste",
 		props: {
-			ajusteId: {
+			documentoId: {
 				type: String,
 				required: true,
 			},
-			// ENTRADA o SALIDA (del tipo del ajuste)
+			// Nombre en los textos ("En el ajuste", "Agregar al traslado")
+			documento: {
+				type: String,
+				required: false,
+				default: "ajuste",
+			},
+			// API del documento (get_detalle, get_lotes) y de sus líneas (guardar, quitar)
+			urlDocumento: {
+				type: String,
+				required: false,
+				default: "inv/ajuste",
+			},
+			urlDetalle: {
+				type: String,
+				required: false,
+				default: "inv/ajuste_detalle",
+			},
+			campoDocumento: {
+				type: String,
+				required: false,
+				default: "inventario_ajuste_id",
+			},
+			// ENTRADA o SALIDA (del tipo del ajuste; un traslado siempre es SALIDA)
 			sentido: {
 				type: String,
 				required: true,
@@ -340,12 +363,12 @@
 			lotes: {}
 		}),
 		created() {
-			this.url   = "inv/ajuste_detalle"
+			this.url   = this.urlDetalle
 			this._key  = "id"
 			this.autoBuscar = false
 			this._blqconfirm = true
 
-			this.fbase.inventario_ajuste_id = this.ajusteId
+			this.fbase[this.campoDocumento] = this.documentoId
 			this.fbase.producto_id = null
 			this.fbase.producto_presentacion_id = null
 			this.fbase.cantidad    = 1
@@ -367,7 +390,7 @@
 				this.btnBuscar = true
 
 				api
-				.get(`/inv/ajuste/get_detalle/${this.ajusteId}`)
+				.get(`/${this.urlDocumento}/get_detalle/${this.documentoId}`)
 				.then(result => {
 					this.lista = (result.data.det ?? []).map(this.normalizarLinea)
 					this.$emit("resumen", this.resumen)
@@ -398,7 +421,7 @@
 				this.lotes[llave] = []
 
 				api
-				.get(`/inv/ajuste/get_lotes/${productoId}`, {
+				.get(`/${this.urlDocumento}/get_lotes/${productoId}`, {
 					params: { presentacion: presentacionId || "" }
 				})
 				.then(result => {
@@ -562,7 +585,7 @@
 
 				return api
 				.post(`/${this.url}/guardar/${linea.id}`, {
-					inventario_ajuste_id: this.ajusteId,
+					[this.campoDocumento]: this.documentoId,
 					producto_id: linea.producto_id,
 					producto_presentacion_id: linea.producto_presentacion_id,
 					cantidad: linea.cantidad,

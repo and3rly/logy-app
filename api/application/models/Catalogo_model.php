@@ -106,11 +106,16 @@ class Catalogo_model extends CI_Model {
 		return $this->consultar("cliente", $args, true);
 	}
 
+	public function verListasPrecio($args=[])
+	{
+		return $this->consultar("lista_precio", $args, true);
+	}
+
 	# Búsqueda de clientes activos por nombre, razón social, NIT o código (buscador del punto de venta)
 	public function buscarClientes($termino, $limite=8)
 	{
 		return $this->db
-		->select("id, nombre, razon_social, identificacion, codigo, direccion, credito, credito_limite, credito_dias")
+		->select("id, nombre, razon_social, identificacion, codigo, direccion, credito, credito_limite, credito_dias, lista_precio_id")
 		->where("empresa_id", $this->_ses->empresa_id)
 		->where("activo", 1)
 		->group_start()
@@ -180,6 +185,11 @@ class Catalogo_model extends CI_Model {
 	public function verAjusteEstados($args=[])
 	{
 		return $this->consultar("inventario_ajuste_estado", $args, true);
+	}
+
+	public function verTrasladoEstados($args=[])
+	{
+		return $this->consultar("inventario_traslado_estado", $args, true);
 	}
 
 	# Parámetros de la empresa de la sesión (abreviaturas de correlativos, moneda por defecto)

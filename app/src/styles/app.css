@@ -1093,16 +1093,22 @@ h4, .h4, h5, .h5, h6, .h6 { font-size: 0.875rem; }
   color: var(--color-primario-texto);
 }
 
-/* Punto rojo sobre la campana de notificaciones */
+/* Cantidad sin leer sobre la campana de notificaciones */
 .notificacion-punto {
   position: absolute;
-  top: 6px;
-  right: 7px;
-  width: 8px;
-  height: 8px;
+  top: 1px;
+  right: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
   border: 2px solid var(--superficie);
-  border-radius: 50%;
+  border-radius: 9px;
   background: var(--bs-danger);
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
 }
 
 /* --------------------------------------------------------------------------
@@ -1358,6 +1364,59 @@ h4, .h4, h5, .h5, h6, .h6 { font-size: 0.875rem; }
 .tabla-contenedor {
   max-height: calc(100vh - 14rem);
   overflow: auto;
+}
+
+/* Listas (va junto a .table-responsive, dentro de card-body): la página mide el alto de la
+   pantalla y la tabla toma el espacio que queda, con scroll propio y el encabezado fijo.
+   Sirve con la card directa del contenido o dentro de row > col (formulario al lado).
+   Cada envoltura se encoge pero no crece: con pocas filas la card queda a su tamaño.
+   Solo en escritorio y con alto suficiente; si no, se desplaza la página */
+@media (min-width: 992px) and (min-height: 500px) {
+  .app-main:has(.tabla-pantalla) {
+    height: 100dvh;
+  }
+
+  /* Si algo no cabe (ventana muy baja, panel lateral largo) se desplaza el contenido */
+  .app-content:has(.tabla-pantalla) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  /* Lo que no lleva la tabla (encabezado, indicadores, formularios) conserva su alto */
+  .app-content:has(.tabla-pantalla) > *,
+  .app-content :is(.row, [class*="col-"], .card, .card-body):has(.tabla-pantalla) > * {
+    flex-shrink: 0;
+  }
+
+  /* Camino hasta la tabla */
+  .app-content > :has(.tabla-pantalla),
+  .app-content :is(.row, [class*="col-"], .card, .card-body):has(.tabla-pantalla) {
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+
+  .app-content :is([class*="col-"], .card, .card-body):has(.tabla-pantalla) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* La columna no pasa del alto de la fila (descontando el margen superior del gutter) */
+  .app-content .row > [class*="col-"]:has(.tabla-pantalla) {
+    max-height: calc(100% - var(--bs-gutter-y));
+  }
+
+  .app-content .card-body:has(.tabla-pantalla) > .tabla-pantalla {
+    flex: 0 1 auto;
+    overflow: auto;
+  }
+
+  .tabla-pantalla > .table > thead > tr > * {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
 }
 
 .tabla-datos {
@@ -2924,6 +2983,74 @@ h4, .h4, h5, .h5, h6, .h6 { font-size: 0.875rem; }
   -webkit-box-orient: vertical;
   overflow: hidden;
   min-height: 2.5em;
+}
+
+/* Lista de productos: en escritorio se desplaza dentro de la tarjeta; en el teléfono, con la página */
+@media (min-width: 992px) {
+  .lista-pv {
+    max-height: calc(100vh - 19rem);
+    overflow-y: auto;
+  }
+
+  /* El ticket acompaña al desplazarse. Solo en escritorio: sticky crea un contexto de apilamiento
+     que dejaría el panel del teléfono debajo de la barra inferior */
+  .ticket-pv {
+    position: sticky;
+    top: 5rem;
+  }
+}
+
+/* Teléfono: tarjeta en un renglón, con la foto chica a la izquierda */
+@media (max-width: 575.98px) {
+  .producto-pv {
+    flex-direction: row;
+  }
+
+  .producto-pv-foto {
+    width: 5.5rem !important;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    background-color: var(--bs-tertiary-bg);
+    border-bottom: 0 !important;
+    border-right: var(--bs-border-width) solid var(--bs-border-color);
+  }
+
+  .producto-pv-foto .ratio {
+    --bs-aspect-ratio: 100%;
+    width: 100%;
+  }
+
+  .producto-pv-foto .fs-1 {
+    font-size: 1.5rem !important;
+  }
+
+  .producto-pv-foto .badge {
+    margin: 0.25rem !important;
+    font-size: 0.65rem;
+  }
+
+  .producto-pv .card-body {
+    min-width: 0;
+  }
+
+  .producto-pv-nombre {
+    min-height: 0;
+  }
+}
+
+/* Teléfono: la venta actual es un panel que sube desde abajo (offcanvas-lg) */
+@media (max-width: 991.98px) {
+  .venta-panel-pv {
+    --bs-offcanvas-height: 90dvh;
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
+  }
+
+  .venta-panel-pv .card {
+    border: 0;
+    box-shadow: none;
+  }
 }
 
 /* Filtros de categoría del punto de venta: píldora con el color de la categoría (--etq-rgb de estiloEtiqueta) */

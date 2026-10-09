@@ -9,6 +9,8 @@
 							<h5 id="tituloImportarInventario" class="modal-title fw-semibold mb-0">Importar productos desde Excel</h5>
 							<div class="small text-body-secondary">
 								Se lee la hoja <strong>Productos</strong> de la plantilla; las cantidades entran a la sucursal <strong>{{ sucursal }}</strong>
+								<template v-if="borrador"> en el borrador <strong class="font-monospace">{{ borrador }}</strong></template>
+								<template v-else> en un inventario inicial nuevo</template>
 							</div>
 						</div>
 						<button type="button" class="btn-close" aria-label="Cerrar" :disabled="btnImportar" @click="cerrar" />
@@ -96,6 +98,11 @@
 								</span>
 							</div>
 
+							<div v-if="resumen.advertencias > 0" class="alert alert-warning small py-2">
+								<i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true" />{{ resumen.advertencias === 1 ? 'Una fila trae un producto' : `${resumen.advertencias} filas traen productos` }}
+								que ya entró con otro inventario inicial; si importa, la cantidad se suma otra vez. Revise que no esté repetido.
+							</div>
+
 							<div v-if="resumen.errores > 0" class="alert alert-warning small py-2">
 								<i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true" />Corrija las filas marcadas en el Excel y vuelva a elegir el archivo; no se importa nada mientras haya errores.
 							</div>
@@ -110,6 +117,8 @@
 									<label class="btn btn-outline-primary" for="filtroTodas">Todas</label>
 									<input id="filtroErrores" v-model="filtro" type="radio" class="btn-check" value="errores" :disabled="resumen.errores === 0">
 									<label class="btn btn-outline-primary" for="filtroErrores">Con errores</label>
+									<input id="filtroAvisos" v-model="filtro" type="radio" class="btn-check" value="avisos" :disabled="!resumen.advertencias">
+									<label class="btn btn-outline-primary" for="filtroAvisos">Con aviso</label>
 								</div>
 							</div>
 
@@ -153,6 +162,9 @@
 													Existente · {{ f.cproducto }}
 												</span>
 												<span v-else class="badge bg-success-subtle text-success-emphasis border border-success-subtle">Producto nuevo</span>
+												<div v-for="a in f.advertencias ?? []" :key="a" class="small text-warning-emphasis mt-1">
+													<i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true" />{{ a }}
+												</div>
 											</td>
 										</tr>
 										<tr v-if="filas.length === 0">
@@ -203,6 +215,11 @@
 				default: ""
 			},
 			sucursal: {
+				type: String,
+				default: ""
+			},
+			// Número del borrador abierto al que se agrega el archivo ("" = se crea uno nuevo)
+			borrador: {
 				type: String,
 				default: ""
 			}
@@ -342,6 +359,10 @@
 
 				return (this.validacion?.filas ?? []).filter(f => {
 					if (this.filtro === "errores" && f.errores.length === 0) {
+						return false
+					}
+
+					if (this.filtro === "avisos" && !(f.advertencias ?? []).length) {
 						return false
 					}
 

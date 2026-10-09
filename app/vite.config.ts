@@ -3,9 +3,9 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
-export default defineConfig(({ command }) => ({
-  // En el servidor la interfaz vive en /app/ (la API en /api); en desarrollo, en la raíz
-  base: command === 'build' ? '/app/' : '/',
+export default defineConfig({
+  // La interfaz vive en la raíz del subdominio de cada cliente (ej. demo.logy.com.gt) y la API en /api
+  base: '/',
   plugins: [vue()],
   resolve: {
     // '@/…' apunta a src/ (ej. '@/mixins/Accion.js')
@@ -25,4 +25,4 @@ export default defineConfig(({ command }) => ({
       },
     },
   },
-}))
+})

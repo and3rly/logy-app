@@ -36,7 +36,7 @@
 						</span>
 					</div>
 
-					<div class="table-responsive">
+					<div class="table-responsive tabla-pantalla">
 						<table class="table table-sm table-hover mb-0">
 							<thead>
 								<tr>
@@ -148,7 +148,7 @@
 						</span>
 					</card-header>
 					<card-body class="p-0">
-						<div class="table-responsive">
+						<div class="table-responsive tabla-pantalla">
 							<table class="table table-sm mb-0">
 								<thead>
 									<tr>

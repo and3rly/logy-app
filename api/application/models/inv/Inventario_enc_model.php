@@ -104,15 +104,15 @@ class Inventario_enc_model extends Centro_model {
 		]);
 	}
 
-	# Inventario inicial vigente (en borrador o procesado) de la sucursal de la sesión; cada sucursal tiene uno
-	public function cargarInicial()
+	# Inventario inicial en borrador de la sucursal de la sesión; puede haber varios procesados, pero un solo borrador
+	public function cargarBorrador()
 	{
 		$tmp = $this->db
 		->select("id")
 		->where("empresa_id", $this->_ses->empresa_id)
 		->where("sucursal_id", $this->_ses->sucursal_id)
 		->where("inventario_tipo_id", self::INICIAL)
-		->where("inventario_estado_id <>", self::ANULADO)
+		->where("inventario_estado_id", self::BORRADOR)
 		->order_by("id", "desc")
 		->get($this->_tabla)
 		->row();
@@ -243,7 +243,7 @@ class Inventario_enc_model extends Centro_model {
 	/**
 	 * Anula el inventario. Un borrador solo cambia de estado. Uno procesado resta de cada lote lo
 	 * que entró (AIP); no se puede si parte de esa existencia ya salió del inventario.
-	 * Después la sucursal puede cargar otro inventario inicial.
+	 * Los demás inventarios iniciales de la sucursal no se tocan.
 	 */
 	public function anular($motivo)
 	{

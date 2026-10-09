@@ -34,7 +34,7 @@
 				</span>
 			</div>
 
-			<div class="table-responsive">
+			<div class="table-responsive tabla-pantalla">
 				<table class="table table-sm mb-0">
 					<thead>
 						<tr>
@@ -43,6 +43,7 @@
 							<th>Contacto</th>
 							<th>Ubicación</th>
 							<th>Crédito</th>
+							<th>Precios</th>
 							<th>Estado</th>
 							<th class="text-end pe-3">Acciones</th>
 						</tr>
@@ -90,6 +91,13 @@
 							</td>
 							<td>
 								<span
+									v-if="nombreLista(i.lista_precio_id)"
+									class="badge border rounded-1 fw-semibold bg-primary-subtle text-primary-emphasis border-primary-subtle"
+								><i class="fa-solid fa-tags me-1" aria-hidden="true" />{{ nombreLista(i.lista_precio_id) }}</span>
+								<span v-else class="text-body-secondary">General</span>
+							</td>
+							<td>
+								<span
 									class="badge border rounded-1 fw-semibold"
 									:class="Number(i.activo) === 1
 										? 'bg-success-subtle text-success-emphasis border-success-subtle'
@@ -109,12 +117,12 @@
 						</tr>
 
 						<tr v-if="btnBuscar">
-							<td colspan="7" class="text-center text-body-secondary">
+							<td colspan="8" class="text-center text-body-secondary">
 								<span class="spinner-border spinner-border-sm me-1" aria-hidden="true" />Cargando...
 							</td>
 						</tr>
 						<tr v-else-if="filtrada.length === 0">
-							<td colspan="7" class="text-center text-body-secondary">{{ termino ? 'Sin resultados para la búsqueda' : 'No hay clientes registrados' }}</td>
+							<td colspan="8" class="text-center text-body-secondary">{{ termino ? 'Sin resultados para la búsqueda' : 'No hay clientes registrados' }}</td>
 						</tr>
 					</tbody>
 				</table>
@@ -152,6 +160,7 @@
 							:pk="reg"
 							:departamentos="departamentos"
 							:municipios="municipios"
+							:listas-precio="listasPrecio"
 							@actualizar="actualizar"
 							@cancelar="cerrarModal"
 						/>
@@ -179,6 +188,7 @@
 			cliente: null,
 			departamentos: [],
 			municipios: [],
+			listasPrecio: [],
 			modalAbierto: false,
 			apertura: 0
 		}),
@@ -231,11 +241,18 @@
 				.then(result => {
 					this.departamentos = result.data.cat?.departamentos ?? []
 					this.municipios    = result.data.cat?.municipios ?? []
+					this.listasPrecio  = result.data.cat?.listas_precio ?? []
 				})
 				.catch(() => {
 					this.departamentos = []
 					this.municipios    = []
+					this.listasPrecio  = []
 				})
+			},
+			// Nombre de la lista de precios del cliente; sin lista paga el precio general
+			nombreLista(id) {
+				let lista = this.listasPrecio.find(l => String(l.id) === String(id))
+				return lista ? lista.nombre : ""
 			},
 			// Municipio y departamento de un cliente, para la columna Ubicación
 			ubicacion(municipioId) {

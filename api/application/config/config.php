@@ -497,7 +497,11 @@ $config['compress_output'] = FALSE;
 | helper' page of the user guide for information regarding date handling.
 |
 */
-$config['time_reference'] = 'local';
+$config['time_reference'] = 'America/Guatemala';
+
+# Hora de Guatemala para date(), Hoy() y todo PHP, sin depender del php.ini del servidor.
+# La de MySQL (NOW(), CURRENT_TIMESTAMP) se fija en el servidor: bd/2026-10-08_zona_horaria.sql
+date_default_timezone_set('America/Guatemala');
 
 /*
 |--------------------------------------------------------------------------

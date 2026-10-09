@@ -4,8 +4,9 @@
 			<span v-if="btnPlantilla" class="spinner-border spinner-border-sm me-1" aria-hidden="true" />
 			<i v-else class="fa-solid fa-file-arrow-down me-1" aria-hidden="true" />Descargar plantilla
 		</button>
-		<button v-if="!inventario || editable" type="button" class="btn btn-primary" :disabled="cargando" @click="abrirImportar">
-			<i class="fa-solid fa-file-import me-1" aria-hidden="true" />{{ inventario ? 'Importar otro archivo' : 'Importar Excel' }}
+		<!-- Siempre importa al borrador abierto; si no hay, crea un inventario inicial nuevo -->
+		<button v-if="inventarios.length" type="button" class="btn btn-primary" :disabled="cargando" @click="abrirImportar">
+			<i class="fa-solid me-1" :class="borrador ? 'fa-file-import' : 'fa-plus'" aria-hidden="true" />{{ borrador ? `Importar a ${borrador.numero}` : 'Nuevo inventario inicial' }}
 		</button>
 	</PageHeader>
 
@@ -64,6 +65,15 @@
 					<span class="ms-auto small fw-normal text-body-secondary">
 						Creado el {{ formatoFecha(inventario.fecha, true) }} por {{ inventario.nusuario }}
 					</span>
+					<button
+						v-if="inventarios.length > 1"
+						type="button"
+						class="btn btn-sm btn-outline-secondary"
+						title="Ver los inventarios iniciales de la sucursal"
+						@click="$refs.lista?.$el?.scrollIntoView({ behavior: 'smooth' })"
+					>
+						<i class="fa-solid fa-list me-1" aria-hidden="true" />{{ inventarios.length }} inventarios
+					</button>
 				</card-header>
 				<card-body class="p-0">
 					<div class="d-flex flex-wrap align-items-center gap-2 p-3 border-bottom">
@@ -86,7 +96,7 @@
 						</span>
 					</div>
 
-					<div class="table-responsive">
+					<div class="table-responsive tabla-pantalla">
 						<table class="table table-sm table-hover mb-0 align-middle">
 							<thead>
 								<tr>
@@ -161,7 +171,7 @@
 				<card-body>
 					<div class="rounded-3 border p-3 mb-3 bg-success-subtle border-success-subtle">
 						<div class="small mb-1 text-success-emphasis">
-							<i class="fa-solid fa-arrow-up me-1" aria-hidden="true" />{{ procesado ? 'Entró al inventario' : 'Entrará al inventario' }}
+							<i class="fa-solid fa-arrow-up me-1" aria-hidden="true" />{{ procesado ? 'Entró al inventario' : anulado ? 'Valor del inventario anulado' : 'Entrará al inventario' }}
 						</div>
 						<div class="fs-2 fw-bold lh-sm text-nowrap text-success-emphasis">{{ simbolo }} {{ formatoMonto(inventario.valor) }}</div>
 						<div class="small text-body-secondary mt-1">Valor al costo del archivo</div>
@@ -193,12 +203,21 @@
 							<span class="text-body-secondary text-nowrap">Último archivo</span>
 							<span class="ms-auto text-body text-truncate" :title="inventario.archivo_nombre">{{ inventario.archivo_nombre }}</span>
 						</li>
-						<li v-if="inventario.fecha_procesado" class="d-flex align-items-center gap-2 py-2">
+						<li v-if="inventario.fecha_procesado" class="d-flex align-items-center gap-2 py-2" :class="{ 'border-bottom': anulado }">
 							<i class="fa-solid fa-circle-check fa-fw text-body-secondary" aria-hidden="true" />
 							<span class="text-body-secondary">Procesado</span>
 							<span class="ms-auto text-body text-end">{{ formatoFecha(inventario.fecha_procesado, true) }} · {{ inventario.nusuario_proceso }}</span>
 						</li>
+						<li v-if="anulado" class="d-flex align-items-center gap-2 py-2">
+							<i class="fa-solid fa-ban fa-fw text-body-secondary" aria-hidden="true" />
+							<span class="text-body-secondary">Anulado</span>
+							<span class="ms-auto text-body text-end">{{ formatoFecha(inventario.fecha_anulado, true) }} · {{ inventario.nusuario_anulo }}</span>
+						</li>
 					</ul>
+
+					<div v-if="anulado" class="alert alert-secondary small py-2 mb-0 mt-3">
+						<strong>Motivo:</strong> {{ inventario.anulado_motivo || '—' }}
+					</div>
 
 					<!-- Acciones: procesar es la principal; anular, ocasional y discreta -->
 					<div v-if="editable" class="mt-3">
@@ -215,7 +234,7 @@
 						</div>
 					</div>
 
-					<div class="mt-3">
+					<div v-if="!anulado" class="mt-3">
 						<button type="button" class="btn btn-suave-danger w-100" :disabled="btnEstado" @click="pedirAnular">
 							<i class="fa-solid fa-ban me-1" aria-hidden="true" />Anular inventario
 						</button>
@@ -230,28 +249,46 @@
 		</div>
 	</div>
 
-	<!-- Inventarios iniciales anulados de la sucursal -->
-	<card v-if="!cargando && anulados.length" class="mt-3">
-		<card-header>Anulados</card-header>
+	<!-- Inventarios iniciales de la sucursal: la carga puede hacerse por partes -->
+	<card v-if="!cargando && inventarios.length > 1" ref="lista" class="mt-3">
+		<card-header>Inventarios iniciales de la sucursal</card-header>
 		<card-body class="p-0">
 			<div class="table-responsive">
-				<table class="table table-sm mb-0 align-middle">
+				<table class="table table-sm table-hover mb-0 align-middle">
 					<thead>
 						<tr>
 							<th class="ps-3">Número</th>
+							<th>Estado</th>
 							<th>Creado</th>
-							<th>Anulado</th>
-							<th>Motivo</th>
+							<th>Procesado / anulado</th>
+							<th class="text-end">Productos</th>
 							<th class="text-end pe-3">Valor</th>
 						</tr>
 					</thead>
 					<tbody>
-						<tr v-for="a in anulados" :key="a.id">
-							<td class="ps-3 font-monospace">{{ a.numero }}</td>
-							<td class="text-nowrap">{{ formatoFecha(a.fecha, true) }}</td>
-							<td class="text-nowrap">{{ formatoFecha(a.fecha_anulado, true) }} · {{ a.nusuario_anulo }}</td>
-							<td class="text-body-secondary">{{ a.anulado_motivo || '—' }}</td>
-							<td class="text-end pe-3 text-nowrap">{{ simbolo }} {{ formatoMonto(a.valor) }}</td>
+						<tr
+							v-for="i in inventarios"
+							:key="i.id"
+							:class="{ 'table-active': i.id === inventario?.id }"
+							style="cursor: pointer"
+							:title="`Ver el inventario ${i.numero}`"
+							@click="seleccionar(i)"
+						>
+							<td class="ps-3 font-monospace">{{ i.numero }}</td>
+							<td>
+								<span class="badge rounded-1 fw-semibold etiqueta-color" :style="estiloEtiqueta(etiquetaEstado(i.cestado))">{{ i.nestado }}</span>
+							</td>
+							<td class="text-nowrap">{{ formatoFecha(i.fecha, true) }} · {{ i.nusuario }}</td>
+							<td>
+								<template v-if="i.cestado === 'ANULADO'">
+									<div class="text-nowrap">{{ formatoFecha(i.fecha_anulado, true) }} · {{ i.nusuario_anulo }}</div>
+									<div class="small text-body-secondary">{{ i.anulado_motivo || '—' }}</div>
+								</template>
+								<span v-else-if="i.fecha_procesado" class="text-nowrap">{{ formatoFecha(i.fecha_procesado, true) }} · {{ i.nusuario_proceso }}</span>
+								<span v-else class="text-body-secondary">—</span>
+							</td>
+							<td class="text-end">{{ i.productos }}</td>
+							<td class="text-end pe-3 text-nowrap">{{ simbolo }} {{ formatoMonto(i.valor) }}</td>
 						</tr>
 					</tbody>
 				</table>
@@ -259,7 +296,7 @@
 		</card-body>
 	</card>
 
-	<Importar ref="importar" :simbolo="simbolo" :sucursal="sucursal" @importado="importado" />
+	<Importar ref="importar" :simbolo="simbolo" :sucursal="sucursal" :borrador="borrador?.numero ?? ''" @importado="importado" />
 
 	<ConfirmModal
 		ref="confirmar"
@@ -320,8 +357,8 @@
 		name: "Inventario",
 		data: () => ({
 			url: "inv/inventario",
+			inventarios: [],
 			inventario: null,
-			anulados: [],
 			detalle: [],
 			simbolo: "",
 			termino: "",
@@ -351,7 +388,7 @@
 				{
 					icono: "fa-check",
 					titulo: "Procese",
-					texto: "Las existencias entran a la sucursal. Cada sucursal tiene un solo inventario inicial."
+					texto: "Las existencias entran a la sucursal. Si falta algo, cree otro inventario inicial: se avisa si un producto ya se cargó."
 				}
 			]
 		}),
@@ -362,7 +399,8 @@
 			this.modalAnular?.dispose()
 		},
 		methods: {
-			getDatos() {
+			// Selecciona el inventario indicado; si no, el borrador abierto, el último vigente o el último
+			getDatos(id = null) {
 				this.cargando = true
 
 				api
@@ -370,10 +408,14 @@
 				.then(result => {
 					let res = result.data
 
-					this.simbolo    = res.simbolo ?? ""
-					this.inventario = res.inventario ?? null
-					this.anulados   = res.anulados ?? []
-					this.getDetalle()
+					this.simbolo     = res.simbolo ?? ""
+					this.inventarios = res.inventarios ?? []
+
+					this.seleccionar(this.inventarios.find(i => i.id === id)
+						?? this.borrador
+						?? this.inventarios.find(i => i.cestado !== "ANULADO")
+						?? this.inventarios[0]
+						?? null)
 				})
 				.catch(e => {
 					this.$toast.error(mensajeError(e))
@@ -403,12 +445,21 @@
 					this.btnDetalle = false
 				})
 			},
+			seleccionar(inventario) {
+				if (inventario && inventario.id === this.inventario?.id && this.detalle.length) {
+					return
+				}
+
+				this.inventario = inventario
+				this.termino = ""
+				this.getDetalle()
+			},
 			abrirImportar() {
 				this.$refs.importar?.abrir()
 			},
 			importado(inventario) {
-				this.inventario = inventario
-				this.getDetalle()
+				this.inventario = null
+				this.getDatos(inventario?.id)
 			},
 			// La plantilla la arma la API; se pide como blob porque la petición lleva el token
 			descargarPlantilla() {
@@ -488,8 +539,8 @@
 						this.modalAnular?.hide()
 						this.$toast.success(res.mensaje)
 
-						// Anulado: la sucursal queda libre para otro inventario inicial
-						accion === "anular" ? this.getDatos() : this.importado(res.inventario)
+						// Se recarga la lista: cambian el estado y el borrador abierto
+						this.importado(res.inventario)
 					} else {
 						this.$toast.error(res.mensaje)
 					}
@@ -537,6 +588,13 @@
 			},
 			procesado() {
 				return this.inventario?.cestado === "PROCESADO"
+			},
+			anulado() {
+				return this.inventario?.cestado === "ANULADO"
+			},
+			// Borrador abierto de la sucursal: ahí se agregan los archivos que se importen
+			borrador() {
+				return this.inventarios.find(i => i.cestado === "BORRADOR") ?? null
 			},
 			detalleFiltrado() {
 				let ter = this.termino.trim().toLowerCase()

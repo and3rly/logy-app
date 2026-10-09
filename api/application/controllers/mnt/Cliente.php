@@ -33,7 +33,8 @@ class Cliente extends CI_Controller {
 		$data = [
 			"cat" => [
 				"municipios"    => $this->catalogo->verMunicipios(),
-				"departamentos" => $this->catalogo->verDepartamentos()
+				"departamentos" => $this->catalogo->verDepartamentos(),
+				"listas_precio" => $this->catalogo->verListasPrecio(["_todos" => true])
 			]
 		];
 
@@ -49,7 +50,7 @@ class Cliente extends CI_Controller {
 
 			if (verPropiedad($datos, "nombre")) {
 
-				foreach (["razon_social", "identificacion", "codigo", "direccion", "telefono", "correo", "credito_limite", "municipio_id"] as $campo) {
+				foreach (["razon_social", "identificacion", "codigo", "direccion", "telefono", "correo", "credito_limite", "municipio_id", "lista_precio_id"] as $campo) {
 					if (property_exists($datos, $campo) && trim((string)$datos->$campo) === "") {
 						$datos->$campo = null;
 					}
@@ -67,8 +68,19 @@ class Cliente extends CI_Controller {
 
 				$cliente = new Cliente_model($id);
 
+				# La lista nueva debe ser de la empresa y estar activa; la que ya tenía se conserva aunque se haya desactivado
+				$lista = verPropiedad($datos, "lista_precio_id", null);
+				$listaValida = !$lista ||
+					(string)$lista === (string)$cliente->lista_precio_id ||
+					$this->catalogo->verListasPrecio([
+						"id" => $lista,
+						"_uno" => true
+					]);
+
 				if ($cliente->existe($datos)) {
 					$data["mensaje"] = "Ya existe un cliente con la misma identificación o código.";
+				} else if (!$listaValida) {
+					$data["mensaje"] = "La lista de precios no existe o está inactiva.";
 				} else {
 					if ($cliente->guardar($datos)) {
 						$data["exito"] = 1;

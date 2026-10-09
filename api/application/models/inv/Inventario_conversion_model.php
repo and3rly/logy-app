@@ -90,11 +90,13 @@ class Inventario_conversion_model extends Centro_model {
 
 	/**
 	 * Registra la conversión y mueve el stock de la sucursal de la sesión en una sola transacción.
-	 * $args: sentido (EXPLOSION o IMPLOSION), producto_id, producto_presentacion_id,
-	 * cantidad (presentaciones, entero) y observación.
-	 * Explosión: salen las presentaciones (la que vence primero) y entran sus unidades con el mismo vencimiento.
-	 * Implosión: salen las unidades (la que vence primero) y entran las presentaciones con el vencimiento
-	 * más próximo de las unidades usadas. El costo no cambia: la presentación vale el costo × factor.
+	 * $args: sentido (EXPLOSION: presentación → unidad; IMPLOSION: unidad → presentación), producto_id,
+	 * producto_presentacion_id, cantidad (entero, del lado más grande) y observación.
+	 * La presentación puede ser más grande que la unidad (Quintal = 100 LB, factor 100) o más pequeña
+	 * (Libra con base Quintal, factor 0.01); la cantidad siempre es del lado grande para no partirlo.
+	 * Abrir (grande → pequeño): sale lo grande (lo que vence primero) y entra lo pequeño con el mismo vencimiento.
+	 * Armar (pequeño → grande): sale lo pequeño (lo que vence primero) y entra lo grande con el vencimiento
+	 * más próximo de lo usado. El costo no cambia: la presentación vale el costo × factor.
 	 */
 	public function convertir($args=[])
 	{
@@ -150,7 +152,19 @@ class Inventario_conversion_model extends Centro_model {
 			return false;
 		}
 
-		$unidades = round($cantidad * $factor, 2);
+		# Más pequeña que la unidad: cuántas trae una unidad (factor 0.01 → 100)
+		$menor = $factor < 1;
+		$porUnidad = $menor ? round(1 / $factor) : 0;
+
+		# El factor debe devolver exacto cuántas trae una unidad; si no, la conversión descuadraría
+		if ($menor && ($porUnidad < 2 || abs(round(1 / $porUnidad, 5) - $factor) > 0.000001)) {
+			$this->setMensaje("La presentación {$presentacion->nombre} no tiene un factor válido.");
+			return false;
+		}
+
+		# La cantidad es del lado grande: presentaciones, o unidades si la presentación es más pequeña
+		$unidades = $menor ? $cantidad : round($cantidad * $factor, 2);
+		$presentaciones = $menor ? $cantidad * $porUnidad : $cantidad;
 		$observacion = trim((string)elemento($args, "observacion", ""));
 
 		$salida = $this->catalogo->verMovimientoTipos([
@@ -178,7 +192,7 @@ class Inventario_conversion_model extends Centro_model {
 			"unidad_medida_id" => $producto->unidad_medida_id,
 			"producto_presentacion_id" => $presentacion->id,
 			"factor" => $factor,
-			"cantidad" => $cantidad,
+			"cantidad" => $presentaciones,
 			"unidades" => $unidades,
 			"costo" => (float)$producto->costo,
 			"observacion" => $observacion === "" ? null : mb_substr($observacion, 0, 300)
@@ -195,15 +209,24 @@ class Inventario_conversion_model extends Centro_model {
 			"unidad_medida_id" => $producto->unidad_medida_id
 		];
 
-		# Lo que sale: las presentaciones (explosión) o las unidades (implosión)
-		$stock = new Stock_model();
-		$lotes = $stock->descontar($base + [
+		# Origen y destino: la presentación (explosión sale de ella) o la unidad (implosión sale de ella)
+		$origen = [
 			"producto_presentacion_id" => $explosion ? $presentacion->id : null,
-			"cantidad" => $explosion ? $cantidad : $unidades
-		]);
+			"cantidad" => $explosion ? $presentaciones : $unidades
+		];
+		$destino = [
+			"producto_presentacion_id" => $explosion ? null : $presentacion->id,
+			"cantidad" => $explosion ? $unidades : $presentaciones
+		];
+
+		# Abrir: de lo grande a lo pequeño
+		$abrir = $explosion !== $menor;
+
+		$stock = new Stock_model();
+		$lotes = $stock->descontar($base + $origen);
 
 		if ($lotes === false) {
-			$falta = $explosion ? "{$presentacion->nombre}" : "unidades sueltas";
+			$falta = $explosion ? $presentacion->nombre : $this->nombreUnidad($producto->unidad_medida_id);
 			return $this->cancelar("No hay existencia suficiente de {$producto->nombre} ({$falta}) para convertir.");
 		}
 
@@ -215,12 +238,14 @@ class Inventario_conversion_model extends Centro_model {
 			$this->movimiento($stockId, $salida->id, -$sale, $texto);
 		}
 
-		if ($explosion) {
-			# Cada lote de presentaciones entra como unidades con su mismo vencimiento
+		if ($abrir) {
+			# Cada lote abierto entra en la medida pequeña con su mismo vencimiento
+			$porLote = $destino["cantidad"] / $origen["cantidad"];
+
 			foreach ($lotes as $stockId => $sale) {
-				$entra = round($sale * $factor, 2);
+				$entra = round($sale * $porLote, 2);
 				$lote = (new Stock_model())->sumar($base + [
-					"producto_presentacion_id" => null,
+					"producto_presentacion_id" => $destino["producto_presentacion_id"],
 					"fecha_vence" => $vencimientos[$stockId],
 					"cantidad" => $entra
 				]);
@@ -228,15 +253,15 @@ class Inventario_conversion_model extends Centro_model {
 				$this->movimiento($lote, $entrada->id, $entra, $texto);
 			}
 		} else {
-			# Las presentaciones armadas vencen cuando vence la primera unidad usada
+			# Lo armado vence cuando vence lo primero que se usó
 			$fechas = array_filter($vencimientos);
 			$lote = (new Stock_model())->sumar($base + [
-				"producto_presentacion_id" => $presentacion->id,
+				"producto_presentacion_id" => $destino["producto_presentacion_id"],
 				"fecha_vence" => count($fechas) > 0 ? min($fechas) : null,
-				"cantidad" => $cantidad
+				"cantidad" => $destino["cantidad"]
 			]);
 
-			$this->movimiento($lote, $entrada->id, $cantidad, $texto);
+			$this->movimiento($lote, $entrada->id, $destino["cantidad"], $texto);
 		}
 
 		if ($this->db->trans_status() === false) {
@@ -276,6 +301,17 @@ class Inventario_conversion_model extends Centro_model {
 		}
 
 		return $lista;
+	}
+
+	private function nombreUnidad($id)
+	{
+		$tmp = $this->db
+		->select("nombre")
+		->where("id", $id)
+		->get("unidad_medida")
+		->row();
+
+		return $tmp ? $tmp->nombre : "unidad de medida";
 	}
 
 	private function movimiento($stockId, $tipoId, $cantidad, $observacion)

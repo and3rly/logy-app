@@ -36,6 +36,8 @@ brain-logy/
 !.env.example
 # Credenciales de la base de datos (servidor real)
 api/application/config/database.php
+# Llave de la cuenta de servicio de Google Drive
+api/application/libraries/drive/*.json
 
 # ---------- API (CodeIgniter 3) ----------
 api/vendor/

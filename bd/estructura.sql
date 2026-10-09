@@ -227,6 +227,23 @@ CREATE TABLE `unidad_medida` (
   CONSTRAINT `fk_unidad_medida_empresa1` FOREIGN KEY (`empresa_id`) REFERENCES `empresa` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
+-- unidad_equivalencia: 1 unidad_medida_id (la grande) = cantidad unidad_menor_id
+CREATE TABLE `unidad_equivalencia` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `unidad_medida_id` int NOT NULL COMMENT 'La grande: 1 de esta...',
+  `unidad_menor_id` int NOT NULL COMMENT '...trae "cantidad" de esta',
+  `cantidad` decimal(15,5) NOT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT '1',
+  `empresa_id` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_unidad_equivalencia_par` (`unidad_medida_id`,`unidad_menor_id`),
+  KEY `idx_unidad_equivalencia_menor` (`unidad_menor_id`),
+  KEY `idx_unidad_equivalencia_empresa` (`empresa_id`),
+  CONSTRAINT `fk_unidad_equivalencia_unidad` FOREIGN KEY (`unidad_medida_id`) REFERENCES `unidad_medida` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_unidad_equivalencia_menor` FOREIGN KEY (`unidad_menor_id`) REFERENCES `unidad_medida` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_unidad_equivalencia_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresa` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
 -- usuario
 CREATE TABLE `usuario` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -280,6 +297,23 @@ CREATE TABLE `categoria` (
   CONSTRAINT `fk_categoria_empresa1` FOREIGN KEY (`empresa_id`) REFERENCES `empresa` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
+-- lista_precio
+CREATE TABLE `lista_precio` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(100) NOT NULL,
+  `descripcion` varchar(300) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT '1',
+  `fecha` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `empresa_id` int NOT NULL,
+  `usuario_id` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lista_precio_id_empresa` (`id`,`empresa_id`),
+  KEY `idx_lista_precio_empresa` (`empresa_id`),
+  KEY `idx_lista_precio_usuario` (`usuario_id`),
+  CONSTRAINT `fk_lista_precio_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresa` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_lista_precio_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
 -- cliente
 CREATE TABLE `cliente` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -295,6 +329,7 @@ CREATE TABLE `cliente` (
   `credito` tinyint(1) NOT NULL DEFAULT '0',
   `credito_limite` decimal(15,5) DEFAULT NULL,
   `credito_dias` int NOT NULL DEFAULT '0',
+  `lista_precio_id` int DEFAULT NULL,
   `empresa_id` int NOT NULL,
   `usuario_id` int NOT NULL,
   `municipio_id` int DEFAULT NULL,
@@ -305,7 +340,9 @@ CREATE TABLE `cliente` (
   KEY `idx_cliente_municipio` (`municipio_id`),
   KEY `idx_cliente_identificacion` (`identificacion`),
   KEY `idx_cliente_codigo` (`codigo`),
+  KEY `fk_cliente_lista_precio_empresa` (`lista_precio_id`,`empresa_id`),
   CONSTRAINT `fk_cliente_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresa` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_cliente_lista_precio_empresa` FOREIGN KEY (`lista_precio_id`, `empresa_id`) REFERENCES `lista_precio` (`id`, `empresa_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_cliente_municipio` FOREIGN KEY (`municipio_id`) REFERENCES `municipio` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_cliente_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
@@ -504,14 +541,37 @@ CREATE TABLE `producto_presentacion` (
   `id` int NOT NULL AUTO_INCREMENT,
   `nombre` varchar(50) NOT NULL,
   `factor` decimal(10,5) NOT NULL,
+  `unidad_medida_id` int DEFAULT NULL,
   `activo` tinyint(1) NOT NULL DEFAULT '1',
   `producto_id` int NOT NULL,
   `usuario_id` int NOT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_producto_presentacion_producto1_idx` (`producto_id`),
   KEY `fk_producto_presentacion_usuario1_idx` (`usuario_id`),
+  KEY `idx_producto_presentacion_unidad_medida` (`unidad_medida_id`),
   CONSTRAINT `fk_producto_presentacion_producto1` FOREIGN KEY (`producto_id`) REFERENCES `producto` (`id`),
+  CONSTRAINT `fk_producto_presentacion_unidad_medida` FOREIGN KEY (`unidad_medida_id`) REFERENCES `unidad_medida` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_producto_presentacion_usuario1` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- lista_precio_detalle
+CREATE TABLE `lista_precio_detalle` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `lista_precio_id` int NOT NULL,
+  `producto_id` int NOT NULL,
+  `producto_presentacion_id` int DEFAULT NULL,
+  `precio` decimal(15,5) NOT NULL DEFAULT '0.00000',
+  `fecha` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `usuario_id` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lista_precio_detalle` (`lista_precio_id`,`producto_id`,`producto_presentacion_id`),
+  KEY `idx_lista_precio_detalle_producto` (`producto_id`),
+  KEY `idx_lista_precio_detalle_presentacion` (`producto_presentacion_id`),
+  KEY `idx_lista_precio_detalle_usuario` (`usuario_id`),
+  CONSTRAINT `fk_lista_precio_detalle_lista` FOREIGN KEY (`lista_precio_id`) REFERENCES `lista_precio` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_lista_precio_detalle_producto` FOREIGN KEY (`producto_id`) REFERENCES `producto` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_lista_precio_detalle_presentacion` FOREIGN KEY (`producto_presentacion_id`) REFERENCES `producto_presentacion` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_lista_precio_detalle_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
 -- proveedor
@@ -639,6 +699,7 @@ CREATE TABLE `cotizacion` (
   `vendedor_id` int DEFAULT NULL,
   `moneda_id` int NOT NULL,
   `cliente_id` int DEFAULT NULL,
+  `lista_precio_id` int DEFAULT NULL,
   `forma_pago_id` int DEFAULT NULL,
   `cotizacion_estado_id` int NOT NULL,
   `cotizacion_serie_id` int NOT NULL,
@@ -685,8 +746,10 @@ CREATE TABLE `cotizacion` (
   KEY `idx_cotizacion_valida_hasta` (`valida_hasta`),
   KEY `idx_cotizacion_anulado_usuario` (`anulado_usuario`),
   KEY `fk_cotizacion_cliente_empresa` (`cliente_id`,`empresa_id`),
+  KEY `fk_cotizacion_lista_precio_empresa` (`lista_precio_id`,`empresa_id`),
   CONSTRAINT `fk_cotizacion_anulado_usuario` FOREIGN KEY (`anulado_usuario`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_cotizacion_cliente_empresa` FOREIGN KEY (`cliente_id`, `empresa_id`) REFERENCES `cliente` (`id`, `empresa_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_cotizacion_lista_precio_empresa` FOREIGN KEY (`lista_precio_id`, `empresa_id`) REFERENCES `lista_precio` (`id`, `empresa_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_cotizacion_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresa` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_cotizacion_estado_empresa` FOREIGN KEY (`cotizacion_estado_id`, `empresa_id`) REFERENCES `cotizacion_estado` (`id`, `empresa_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_cotizacion_forma_pago` FOREIGN KEY (`forma_pago_id`) REFERENCES `forma_pago` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -876,6 +939,7 @@ CREATE TABLE `inventario_enc` (
   `archivo_hash` char(64) DEFAULT NULL,
   `fecha_procesado` datetime DEFAULT NULL,
   `fecha_anulado` datetime DEFAULT NULL,
+  `anulado_motivo` varchar(500) DEFAULT NULL,
   `empresa_id` int NOT NULL,
   `sucursal_id` int NOT NULL,
   `usuario_id` int NOT NULL,
@@ -968,6 +1032,7 @@ CREATE TABLE `venta` (
   `moneda_id` int NOT NULL,
   `cliente_id` int DEFAULT NULL COMMENT 'Sin FK hasta implementar la tabla cliente',
   `cotizacion_id` int DEFAULT NULL,
+  `lista_precio_id` int DEFAULT NULL,
   `forma_pago_id` int NOT NULL,
   `venta_estado_id` int NOT NULL,
   `venta_serie_id` int NOT NULL,
@@ -1009,12 +1074,14 @@ CREATE TABLE `venta` (
   KEY `fk_venta_sucursal_idx` (`sucursal_id`),
   KEY `fk_venta_cotizacion_empresa` (`cotizacion_id`,`empresa_id`),
   KEY `fk_venta_cotizacion_idx` (`cotizacion_id`),
+  KEY `fk_venta_lista_precio_empresa` (`lista_precio_id`,`empresa_id`),
   CONSTRAINT `fk_venta_anulado_usuario` FOREIGN KEY (`anulado_usuario`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_venta_certificada_usuario` FOREIGN KEY (`certificada_usuario`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_venta_cotizacion` FOREIGN KEY (`cotizacion_id`) REFERENCES `cotizacion` (`id`),
   CONSTRAINT `fk_venta_cotizacion_empresa` FOREIGN KEY (`cotizacion_id`, `empresa_id`) REFERENCES `cotizacion` (`id`, `empresa_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_venta_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresa` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_venta_estado` FOREIGN KEY (`venta_estado_id`) REFERENCES `venta_estado` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_venta_lista_precio_empresa` FOREIGN KEY (`lista_precio_id`, `empresa_id`) REFERENCES `lista_precio` (`id`, `empresa_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_venta_forma_pago` FOREIGN KEY (`forma_pago_id`) REFERENCES `forma_pago` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_venta_moneda` FOREIGN KEY (`moneda_id`) REFERENCES `moneda` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_venta_serie_empresa` FOREIGN KEY (`venta_serie_id`, `empresa_id`) REFERENCES `venta_serie` (`id`, `empresa_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -1082,6 +1149,119 @@ CREATE TABLE `inventario_det` (
   CONSTRAINT `chk_inventario_det_diferencia` CHECK ((`diferencia` = (`cantidad_fisica` - `cantidad_sistema`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
 
+-- inventario_traslado_estado
+CREATE TABLE `inventario_traslado_estado` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `codigo` varchar(45) NOT NULL,
+  `nombre` varchar(150) NOT NULL,
+  `etiqueta` varchar(20) DEFAULT NULL,
+  `orden` int NOT NULL DEFAULT '0',
+  `activo` tinyint(1) NOT NULL DEFAULT '1',
+  `empresa_id` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_traslado_estado_empresa_codigo` (`empresa_id`,`codigo`),
+  UNIQUE KEY `uq_traslado_estado_id_empresa` (`id`,`empresa_id`),
+  CONSTRAINT `fk_traslado_estado_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresa` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- inventario_traslado
+CREATE TABLE `inventario_traslado` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `numero` varchar(45) NOT NULL,
+  `inventario_traslado_estado_id` int NOT NULL,
+  `sucursal_destino_id` int NOT NULL,
+  `observacion` varchar(300) DEFAULT NULL,
+  `fecha` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `fecha_enviado` datetime DEFAULT NULL,
+  `fecha_recibido` datetime DEFAULT NULL,
+  `fecha_anulado` datetime DEFAULT NULL,
+  `anulado_motivo` varchar(500) DEFAULT NULL,
+  `empresa_id` int NOT NULL,
+  `sucursal_id` int NOT NULL,
+  `usuario_id` int NOT NULL,
+  `usuario_envio_id` int DEFAULT NULL,
+  `usuario_recibio_id` int DEFAULT NULL,
+  `usuario_anulo_id` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_inventario_traslado_empresa_numero` (`empresa_id`,`numero`),
+  KEY `idx_inventario_traslado_estado_empresa` (`inventario_traslado_estado_id`,`empresa_id`),
+  KEY `idx_inventario_traslado_sucursal` (`sucursal_id`),
+  KEY `idx_inventario_traslado_sucursal_destino` (`sucursal_destino_id`),
+  KEY `idx_inventario_traslado_usuario` (`usuario_id`),
+  KEY `idx_inventario_traslado_usuario_envio` (`usuario_envio_id`),
+  KEY `idx_inventario_traslado_usuario_recibio` (`usuario_recibio_id`),
+  KEY `idx_inventario_traslado_usuario_anulo` (`usuario_anulo_id`),
+  KEY `idx_inventario_traslado_fecha` (`fecha`),
+  CONSTRAINT `fk_inventario_traslado_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresa` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_inventario_traslado_estado_empresa` FOREIGN KEY (`inventario_traslado_estado_id`, `empresa_id`) REFERENCES `inventario_traslado_estado` (`id`, `empresa_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_inventario_traslado_sucursal` FOREIGN KEY (`sucursal_id`) REFERENCES `sucursal` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_inventario_traslado_sucursal_destino` FOREIGN KEY (`sucursal_destino_id`) REFERENCES `sucursal` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_inventario_traslado_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_inventario_traslado_usuario_envio` FOREIGN KEY (`usuario_envio_id`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_inventario_traslado_usuario_recibio` FOREIGN KEY (`usuario_recibio_id`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_inventario_traslado_usuario_anulo` FOREIGN KEY (`usuario_anulo_id`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- inventario_traslado_detalle
+CREATE TABLE `inventario_traslado_detalle` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `inventario_traslado_id` int NOT NULL,
+  `producto_id` int NOT NULL,
+  `unidad_medida_id` int NOT NULL,
+  `producto_presentacion_id` int DEFAULT NULL,
+  `cantidad` decimal(15,2) NOT NULL,
+  `costo` decimal(15,5) NOT NULL DEFAULT '0.00000',
+  `fecha_vence` datetime DEFAULT NULL,
+  `observacion` varchar(300) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_traslado_detalle_traslado` (`inventario_traslado_id`),
+  KEY `idx_traslado_detalle_producto` (`producto_id`),
+  KEY `idx_traslado_detalle_unidad` (`unidad_medida_id`),
+  KEY `idx_traslado_detalle_presentacion` (`producto_presentacion_id`),
+  CONSTRAINT `fk_traslado_detalle_traslado` FOREIGN KEY (`inventario_traslado_id`) REFERENCES `inventario_traslado` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_traslado_detalle_presentacion` FOREIGN KEY (`producto_presentacion_id`) REFERENCES `producto_presentacion` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_traslado_detalle_producto` FOREIGN KEY (`producto_id`) REFERENCES `producto` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_traslado_detalle_unidad` FOREIGN KEY (`unidad_medida_id`) REFERENCES `unidad_medida` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `chk_traslado_detalle_cantidad` CHECK ((`cantidad` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- notificacion
+CREATE TABLE `notificacion` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `tipo` enum('aviso','info','exito') NOT NULL DEFAULT 'info',
+  `icono` varchar(50) NOT NULL,
+  `texto` varchar(300) NOT NULL,
+  `ruta` varchar(100) DEFAULT NULL,
+  `documento_id` int DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT '1',
+  `fecha` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `empresa_id` int NOT NULL,
+  `sucursal_id` int NOT NULL,
+  `usuario_id` int DEFAULT NULL,
+  `usuario_origen_id` int NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_notificacion_sucursal_fecha` (`sucursal_id`,`fecha`),
+  KEY `idx_notificacion_documento` (`ruta`,`documento_id`),
+  KEY `idx_notificacion_empresa` (`empresa_id`),
+  KEY `idx_notificacion_usuario` (`usuario_id`),
+  KEY `idx_notificacion_usuario_origen` (`usuario_origen_id`),
+  CONSTRAINT `fk_notificacion_empresa` FOREIGN KEY (`empresa_id`) REFERENCES `empresa` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_notificacion_sucursal` FOREIGN KEY (`sucursal_id`) REFERENCES `sucursal` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_notificacion_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_notificacion_usuario_origen` FOREIGN KEY (`usuario_origen_id`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
+-- notificacion_leida
+CREATE TABLE `notificacion_leida` (
+  `notificacion_id` int NOT NULL,
+  `usuario_id` int NOT NULL,
+  `fecha` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`notificacion_id`,`usuario_id`),
+  KEY `idx_notificacion_leida_usuario` (`usuario_id`),
+  CONSTRAINT `fk_notificacion_leida_notificacion` FOREIGN KEY (`notificacion_id`) REFERENCES `notificacion` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_notificacion_leida_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3;
+
 -- movimiento
 CREATE TABLE `movimiento` (
   `id` int NOT NULL AUTO_INCREMENT,
@@ -1093,6 +1273,7 @@ CREATE TABLE `movimiento` (
   `inventario_det_id` int DEFAULT NULL,
   `venta_detalle_id` int DEFAULT NULL,
   `inventario_conversion_id` int DEFAULT NULL,
+  `inventario_traslado_detalle_id` int DEFAULT NULL,
   `usuario_id` int NOT NULL,
   `fecha` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `observacion` varchar(300) DEFAULT NULL,
@@ -1105,9 +1286,11 @@ CREATE TABLE `movimiento` (
   KEY `idx_movimiento_venta_detalle` (`venta_detalle_id`),
   KEY `idx_movimiento_inventario_ajuste_detalle` (`inventario_ajuste_detalle_id`),
   KEY `idx_movimiento_inventario_conversion` (`inventario_conversion_id`),
+  KEY `idx_movimiento_inventario_traslado_detalle` (`inventario_traslado_detalle_id`),
   CONSTRAINT `fk_movimiento_compra1` FOREIGN KEY (`compra_id`) REFERENCES `compra` (`id`),
   CONSTRAINT `fk_movimiento_inventario_ajuste_detalle` FOREIGN KEY (`inventario_ajuste_detalle_id`) REFERENCES `inventario_ajuste_detalle` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_movimiento_inventario_conversion` FOREIGN KEY (`inventario_conversion_id`) REFERENCES `inventario_conversion` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_movimiento_inventario_traslado_detalle` FOREIGN KEY (`inventario_traslado_detalle_id`) REFERENCES `inventario_traslado_detalle` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_movimiento_inventario_det` FOREIGN KEY (`inventario_det_id`) REFERENCES `inventario_det` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_movimiento_movimiento_tipo1` FOREIGN KEY (`movimiento_tipo_id`) REFERENCES `movimiento_tipo` (`id`),
   CONSTRAINT `fk_movimiento_stock1` FOREIGN KEY (`stock_id`) REFERENCES `stock` (`id`),

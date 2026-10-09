@@ -68,7 +68,7 @@
 					</span>
 				</div>
 
-				<div class="table-responsive">
+				<div class="table-responsive tabla-pantalla">
 					<table class="table table-sm table-hover mb-0">
 						<thead>
 							<tr>
@@ -279,6 +279,7 @@
 							:unidades="catalogo.unidades"
 							:simbolo="cotizacion?.smoneda ?? ''"
 							:editable="editable"
+							:lista-precio-id="cotizacion?.lista_precio_id ?? null"
 							@cotizacion="actualizarTotales"
 							@lineas="lineas = $event"
 							@producto-creado="productoCreado"
@@ -433,6 +434,7 @@
 				marcas: [],
 				unidades: [],
 				productos: [],
+				listas_precio: [],
 				municipios: [],
 				departamentos: []
 			},

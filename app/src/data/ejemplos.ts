@@ -402,29 +402,13 @@ export const configuracion: { campos: CampoFormulario[]; valores: ValoresFormula
 }
 
 // ===========================================================================
-// Barra superior: usuario conectado y notificaciones
+// Barra superior: usuario conectado (las notificaciones ya son reales: API notificacion)
 // ===========================================================================
 export const usuarioActual = {
   nombre: 'Ana López',
   rol: 'Administrador',
   correo: 'ana.lopez@ejemplo.com',
 }
-
-export interface Notificacion {
-  texto: string
-  hace: string
-  icono: string
-  /** Color del icono */
-  tipo: 'aviso' | 'info' | 'exito'
-  leida: boolean
-}
-
-export const notificaciones: Notificacion[] = [
-  { texto: 'Stock bajo: Film stretch 18" (42 unidades)', hace: 'Hace 10 min', icono: 'fa-solid fa-triangle-exclamation', tipo: 'aviso', leida: false },
-  { texto: 'Nuevo pedido PED-2026-1245 de Comercial del Norte', hace: 'Hace 25 min', icono: 'fa-solid fa-cart-shopping', tipo: 'info', leida: false },
-  { texto: 'Orden OC-2026-0140 recibida en almacén', hace: 'Hace 2 h', icono: 'fa-solid fa-truck', tipo: 'exito', leida: false },
-  { texto: 'Reporte "Inventario valorizado" listo para descargar', hace: 'Hoy, 08:15', icono: 'fa-solid fa-file-lines', tipo: 'info', leida: true },
-]
 
 // ===========================================================================
 // Búsqueda por ruta

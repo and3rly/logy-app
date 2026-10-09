@@ -1,5 +1,6 @@
 <template>
-	<!-- Abrir presentaciones desde el punto de venta: explosión a unidades sueltas, sin salir de la venta -->
+	<!-- Abrir desde el punto de venta, sin salir de la venta: una presentación en unidades sueltas,
+		o la unidad en una presentación más pequeña (1 Quintal → 100 Libras) -->
 	<Teleport to="body">
 		<div
 			ref="modal"
@@ -12,9 +13,9 @@
 				<div class="modal-content">
 					<div class="modal-header">
 						<div>
-							<h5 id="tituloAbrirPresentacion" class="modal-title fw-semibold mb-0">Abrir {{ articulo?.npresentacion }}</h5>
+							<h5 id="tituloAbrirPresentacion" class="modal-title fw-semibold mb-0">Abrir {{ articulo?.npresentacion || articulo?.nunidad }}</h5>
 							<div class="small text-body-secondary">
-								{{ articulo?.nombre }} · 1 {{ articulo?.npresentacion }} = {{ formatoCantidad(factor) }} {{ articulo?.nunidad }}
+								{{ articulo?.nombre }}<template v-if="articulo?.npresentacion"> · {{ equivalencia(articulo.npresentacion, articulo.factor, articulo.nunidad) }}</template>
 							</div>
 						</div>
 						<button type="button" class="btn-close" aria-label="Cerrar" @click="cerrar" />
@@ -41,7 +42,7 @@
 <script>
 	import { Modal } from 'bootstrap'
 	import Form from '../../inv/conversion/Form.vue'
-	import { formatoCantidad } from '@/utils/numero'
+	import { equivalencia } from '@/utils/numero'
 
 	export default {
 		name: "AbrirPresentacion",
@@ -66,7 +67,7 @@
 			this.modal?.dispose()
 		},
 		methods: {
-			// articulo: la tarjeta de la presentación; tope: las que quedan sin contar las del ticket
+			// articulo: la tarjeta (presentación o unidad); tope: lo que queda sin contar lo del ticket
 			abrir(articulo, tope) {
 				this.articulo = articulo
 				this.tope = tope
@@ -80,21 +81,15 @@
 				this.cerrar()
 				this.$emit("abierta", linea)
 			},
-			formatoCantidad
+			equivalencia
 		},
 		computed: {
+			// Sin presentación se abre la unidad: el formulario pide en cuál de las más pequeñas
 			fijo() {
 				return this.articulo ? {
-					sentido: "EXPLOSION",
 					producto_id: this.articulo.producto_id,
-					producto_presentacion_id: this.articulo.producto_presentacion_id
+					producto_presentacion_id: this.articulo.producto_presentacion_id ?? null
 				} : null
-			},
-			factor() {
-				let p = this.productos.find(e => String(e.producto_id) === String(this.articulo?.producto_id))
-				let pre = (p?.presentaciones ?? []).find(e => String(e.producto_presentacion_id) === String(this.articulo?.producto_presentacion_id))
-
-				return Number(pre?.factor ?? 0)
 			}
 		},
 		components: {

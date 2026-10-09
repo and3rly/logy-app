@@ -59,6 +59,39 @@ class Umedida extends CI_Controller {
 
 		$this->output->set_output(json_encode($data));
 	}
+
+	# Equivalencias de la unidad, en los dos sentidos
+	public function get_equivalencias($id="")
+	{
+		$data = [
+			"lista" => $id ? $this->Unidad_medida_model->equivalencias($id) : []
+		];
+
+		$this->output->set_output(json_encode($data));
+	}
+
+	# Datos: unidad_medida_id (la grande), unidad_menor_id, cantidad (> 1) y activo
+	public function guardar_equivalencia($id="")
+	{
+		$data = ["exito" => 0];
+
+		if ($this->input->method() === "post") {
+			$datos = json_decode(file_get_contents("php://input"));
+			$linea = $this->Unidad_medida_model->guardarEquivalencia($id, $datos);
+
+			if ($linea) {
+				$data["exito"] = 1;
+				$data["mensaje"] = "Equivalencia guardada con éxito.";
+				$data["linea"] = $linea;
+			} else {
+				$data["mensaje"] = $this->Unidad_medida_model->getMensaje();
+			}
+		} else {
+			$data["mensaje"] = "Método incorrecto";
+		}
+
+		$this->output->set_output(json_encode($data));
+	}
 }
 
 /* End of file Umedida.php */

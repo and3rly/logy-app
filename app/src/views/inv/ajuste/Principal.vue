@@ -63,7 +63,7 @@
 					</span>
 				</div>
 
-				<div class="table-responsive">
+				<div class="table-responsive tabla-pantalla">
 					<table class="table table-sm table-hover mb-0">
 						<thead>
 							<tr>
@@ -173,7 +173,7 @@
 						<Detalle
 							v-if="reg !== ''"
 							:key="`det-${reg}-${apertura}-${ajuste?.sentido}`"
-							:ajuste-id="reg"
+							:documento-id="reg"
 							:sentido="ajuste?.sentido ?? 'SALIDA'"
 							:productos="productos"
 							:categorias="catalogo.categorias"

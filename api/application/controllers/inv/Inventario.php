@@ -1,7 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-# Inventario inicial de la sucursal de la sesión: se carga desde Excel y se procesa una sola vez
+# Inventarios iniciales de la sucursal de la sesión: se cargan desde Excel por partes (un borrador a la vez)
 class Inventario extends CI_Controller {
 
 	const MAX_ARCHIVO = 5242880;
@@ -26,19 +26,16 @@ class Inventario extends CI_Controller {
 		$this->output->set_status_header("404");
 	}
 
-	# Inventario inicial vigente de la sucursal (o null) y los anulados
+	# Inventarios iniciales de la sucursal (el más reciente primero)
 	public function get_datos()
 	{
 		$inventario = new Inventario_enc_model();
 
 		$data = [
 			"simbolo" => $this->simboloMoneda(),
-			"inventario" => $inventario->cargarInicial() ? $inventario->getInfo() : null,
-			"anulados" => array_values(array_filter($inventario->_buscar([
+			"inventarios" => $inventario->_buscar([
 				"tipo" => Inventario_enc_model::INICIAL
-			]), function ($i) {
-				return (int)$i->inventario_estado_id === Inventario_enc_model::ANULADO;
-			}))
+			])
 		];
 
 		$this->output->set_output(json_encode($data));
@@ -100,7 +97,7 @@ class Inventario extends CI_Controller {
 	}
 
 	/**
-	 * Importa el archivo al inventario inicial de la sucursal (lo crea en borrador si no existe):
+	 * Importa el archivo al inventario inicial en borrador de la sucursal (lo crea si no hay):
 	 * crea los catálogos y productos que falten y suma cada fila a su lote. Si alguna fila tiene
 	 * errores no se importa nada.
 	 */
@@ -130,15 +127,13 @@ class Inventario extends CI_Controller {
 
 				$this->db->trans_begin();
 
-				# Bloquea la sucursal: dos usuarios no crean dos inventarios iniciales a la vez
+				# Bloquea la sucursal: dos usuarios no abren dos borradores a la vez
 				$this->db->query("select id from sucursal where id = ? for update", [$this->_ses->sucursal_id]);
 
 				$inventario = new Inventario_enc_model();
-				$existe = $inventario->cargarInicial();
+				$existe = $inventario->cargarBorrador();
 
-				if ($existe && !$inventario->editable()) {
-					$data["mensaje"] = "La sucursal ya tiene su inventario inicial procesado ({$inventario->numero}); use ajustes para corregir existencias.";
-				} else if ($existe && $inventario->archivo_hash === $hash) {
+				if ($existe && $inventario->archivo_hash === $hash) {
 					$data["mensaje"] = "Este archivo ya se importó en el inventario {$inventario->numero}; las cantidades se duplicarían.";
 				} else {
 					$inventario->asignarNumero();

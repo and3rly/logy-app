@@ -1,13 +1,13 @@
 <script setup lang="ts">
 // Barra superior: botón de menú, buscador, notificaciones y perfil
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { Dropdown } from 'bootstrap'
 import { useLayoutStore } from '../../stores/layout'
 import { useTemaStore } from '../../stores/tema'
 import ColorPicker from './ColorPicker.vue'
-import { notificaciones as notificacionesEjemplo } from '../../data/ejemplos'
 import { useSesionStore } from '../../stores/sesion'
-import { mensajeError } from '../../services/api'
+import api, { mensajeError } from '../../services/api'
 import toaster from '../../helpers/toaster'
 
 const layout = useLayoutStore()
@@ -60,12 +60,89 @@ function cerrarSesion() {
 }
 
 // --- Notificaciones ------------------------------------------------------
-const notificaciones = ref(notificacionesEjemplo.map((n) => ({ ...n })))
-const sinLeer = computed(() => notificaciones.value.filter((n) => !n.leida).length)
-
-function marcarTodasLeidas() {
-  notificaciones.value.forEach((n) => (n.leida = true))
+// Las de la sucursal de la sesión (API notificacion/buscar). Se recargan al cambiar de sucursal
+// y cada minuto; leer una es por usuario.
+interface Notificacion {
+  id: number
+  texto: string
+  icono: string
+  /** Color del icono */
+  tipo: 'aviso' | 'info' | 'exito'
+  ruta: string | null
+  documento_id: number | null
+  fecha: string
+  /** Antigüedad según el reloj del servidor */
+  segundos: number
+  leida: boolean
 }
+
+const notificaciones = ref<Notificacion[]>([])
+const sinLeer = ref(0)
+const botonNotificaciones = ref<HTMLElement | null>(null)
+let recarga: number | undefined
+
+async function cargarNotificaciones() {
+  try {
+    const { data } = await api.get('/notificacion/buscar')
+    notificaciones.value = (data.lista ?? []).map((n: Notificacion) => ({
+      ...n,
+      segundos: Number(n.segundos),
+      leida: Number(n.leida) === 1,
+    }))
+    sinLeer.value = Number(data.sin_leer ?? 0)
+  } catch {
+    // Sin aviso: se vuelve a intentar en la siguiente recarga
+  }
+}
+
+async function marcarTodasLeidas() {
+  try {
+    const { data } = await api.post('/notificacion/marcar_todas')
+    if (data.exito) {
+      notificaciones.value.forEach((n) => (n.leida = true))
+      sinLeer.value = Number(data.sin_leer ?? 0)
+    }
+  } catch (e) {
+    toaster.error(mensajeError(e))
+  }
+}
+
+// Marca la notificación como leída y abre su documento (ej. /traslado?id=3)
+async function abrirNotificacion(n: Notificacion) {
+  Dropdown.getOrCreateInstance(botonNotificaciones.value as HTMLElement).hide()
+
+  if (!n.leida) {
+    n.leida = true
+    api
+      .post(`/notificacion/marcar_leida/${n.id}`)
+      .then(({ data }) => (sinLeer.value = Number(data.sin_leer ?? 0)))
+      .catch(() => undefined)
+  }
+
+  if (n.ruta) {
+    router.push({ path: n.ruta, query: n.documento_id ? { id: String(n.documento_id) } : {} })
+  }
+}
+
+// "Hace un momento", "Hace 10 min", "Hace 2 h", "Ayer" o la fecha
+function hace(segundos: number, fecha: string) {
+  if (segundos < 60) return 'Hace un momento'
+  if (segundos < 3600) return `Hace ${Math.floor(segundos / 60)} min`
+  if (segundos < 86400) return `Hace ${Math.floor(segundos / 3600)} h`
+  if (segundos < 172800) return 'Ayer'
+
+  const [a, m, d] = String(fecha).slice(0, 10).split('-')
+  return `${d}/${m}/${a}`
+}
+
+watch(() => sucursalActual.value?.id, cargarNotificaciones)
+
+onMounted(() => {
+  cargarNotificaciones()
+  recarga = window.setInterval(cargarNotificaciones, 60000)
+})
+
+onBeforeUnmount(() => window.clearInterval(recarga))
 </script>
 
 <template>
@@ -139,6 +216,7 @@ function marcarTodasLeidas() {
       <!-- Notificaciones -->
       <div class="dropdown">
         <button
+          ref="botonNotificaciones"
           type="button"
           class="btn btn-icono position-relative"
           data-bs-toggle="dropdown"
@@ -147,7 +225,7 @@ function marcarTodasLeidas() {
           :aria-label="sinLeer ? `Notificaciones (${sinLeer} sin leer)` : 'Notificaciones'"
         >
           <i class="fa-regular fa-bell" aria-hidden="true" />
-          <span v-if="sinLeer" class="notificacion-punto" />
+          <span v-if="sinLeer" class="notificacion-punto" aria-hidden="true">{{ sinLeer > 99 ? '99+' : sinLeer }}</span>
         </button>
 
         <div class="dropdown-menu dropdown-menu-end p-0 notificaciones">
@@ -158,20 +236,28 @@ function marcarTodasLeidas() {
             </button>
           </div>
 
+          <!-- Las de la sucursal de la sesión; el clic abre el documento -->
           <ul class="list-unstyled mb-0">
             <li
-              v-for="(n, i) in notificaciones"
-              :key="i"
+              v-for="n in notificaciones"
+              :key="n.id"
               class="notificacion"
               :class="{ 'notificacion--nueva': !n.leida }"
+              role="button"
+              tabindex="0"
+              @click="abrirNotificacion(n)"
+              @keydown.enter="abrirNotificacion(n)"
             >
               <span class="notificacion-icono" :class="`notificacion-icono--${n.tipo}`">
                 <i :class="n.icono" aria-hidden="true" />
               </span>
               <span>
                 <span class="d-block">{{ n.texto }}</span>
-                <span class="notificacion-hace">{{ n.hace }}</span>
+                <span class="notificacion-hace">{{ hace(n.segundos, n.fecha) }}</span>
               </span>
+            </li>
+            <li v-if="notificaciones.length === 0" class="notificacion justify-content-center text-body-secondary">
+              Sin notificaciones
             </li>
           </ul>
         </div>

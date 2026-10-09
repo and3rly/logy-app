@@ -1,5 +1,5 @@
 RewriteEngine On
-RewriteBase /app/
+RewriteBase /
 
 # Archivos reales (assets, favicon) se sirven tal cual; el resto lo resuelve la interfaz
 RewriteCond %{REQUEST_FILENAME} -f [OR]

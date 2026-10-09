@@ -10,6 +10,7 @@ import MarcaPrincipal from '../views/mnt/marca/Principal.vue'
 import CategoriaPrincipal from '../views/mnt/categoria/Principal.vue'
 import ClientePrincipal from '../views/mnt/cliente/Principal.vue'
 import ProductoPrincipal from '../views/mnt/producto/Principal.vue'
+import ListaPrecioPrincipal from '../views/mnt/lista_precio/Principal.vue'
 import ProveedorPrincipal from '../views/mnt/proveedor/Principal.vue'
 import UsuarioPrincipal from '../views/mnt/usuario/Principal.vue'
 import SucursalPrincipal from '../views/mnt/sucursal/Principal.vue'
@@ -26,7 +27,9 @@ import AjustePrincipal from '../views/inv/ajuste/Principal.vue'
 import KardexPrincipal from '../views/inv/kardex/Principal.vue'
 import InventarioPrincipal from '../views/inv/inventario/Principal.vue'
 import ConversionPrincipal from '../views/inv/conversion/Principal.vue'
+import TrasladoPrincipal from '../views/inv/traslado/Principal.vue'
 import PerfilPrincipal from '../views/perfil/Principal.vue'
+import VentaDiaPrincipal from '../views/rep/venta_dia/Principal.vue'
 import { useSesionStore } from '../stores/sesion'
 import { useMenuStore } from '../stores/menu'
 import toaster from '../helpers/toaster'
@@ -140,6 +143,12 @@ const routes: RouteRecordRaw[] = [
         meta: { titulo: 'Productos', migas: [{ texto: 'Catálogos' }, { texto: 'Productos' }] },
       },
       {
+        path: 'lista-precio',
+        name: 'lista-precio',
+        component: ListaPrecioPrincipal,
+        meta: { titulo: 'Listas de precios', migas: [{ texto: 'Catálogos' }, { texto: 'Listas de precios' }] },
+      },
+      {
         path: 'proveedor',
         name: 'proveedor',
         component: ProveedorPrincipal,
@@ -237,8 +246,18 @@ const routes: RouteRecordRaw[] = [
         component: ConversionPrincipal,
         meta: {
           titulo: 'Conversiones',
-          descripcion: 'Abrir presentaciones en unidades sueltas o armarlas con unidades',
+          descripcion: 'Pasar de una medida a otra: abrir un quintal en libras o armar quintales con libras',
           migas: [{ texto: 'Inventario' }, { texto: 'Conversiones' }],
+        },
+      },
+      {
+        path: 'traslado',
+        name: 'traslado',
+        component: TrasladoPrincipal,
+        meta: {
+          titulo: 'Traslados',
+          descripcion: 'Envío de producto a otra sucursal y recepción de lo que llega',
+          migas: [{ texto: 'Inventario' }, { texto: 'Traslados' }],
         },
       },
       {
@@ -286,6 +305,16 @@ const routes: RouteRecordRaw[] = [
       ...modulo('compras/proveedores', 'Proveedores', 'Nuevo proveedor', 'Empresas que abastecen el inventario', 'Compras'),
       ...modulo('ventas/pedidos', 'Pedidos', 'Nuevo pedido', 'Pedidos de clientes y su estado de despacho', 'Ventas'),
       ...modulo('ventas/clientes', 'Clientes', 'Nuevo cliente', 'Empresas que compran y sus contactos', 'Ventas'),
+      {
+        path: 'ventas-dia',
+        name: 'reporte-ventas-dia',
+        component: VentaDiaPrincipal,
+        meta: {
+          titulo: 'Ventas por día',
+          descripcion: 'Vendido, costo y ganancia de cada día, con sus ventas y productos',
+          migas: [{ texto: 'Reportes' }, { texto: 'Ventas por día' }],
+        },
+      },
       {
         path: 'reportes',
         name: 'reportes',

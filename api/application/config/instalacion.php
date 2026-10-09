@@ -2744,6 +2744,24 @@ $config["instalacion"] = [
 			"icono" => "fa-regular fa-circle",
 			"url" => "/conversion",
 			"activo" => 1
+		],
+		[
+			"id" => 22,
+			"modulo_id" => 1,
+			"nombre" => "Listas de precios",
+			"orden" => 7,
+			"icono" => "fa-solid fa-tags",
+			"url" => "/lista-precio",
+			"activo" => 1
+		],
+		[
+			"id" => 23,
+			"modulo_id" => 8,
+			"nombre" => "Traslados",
+			"orden" => 6,
+			"icono" => "fa-regular fa-circle",
+			"url" => "/traslado",
+			"activo" => 1
 		]
 	],
 
@@ -2871,6 +2889,27 @@ $config["instalacion"] = [
 			"nombre" => "Conversión entrada",
 			"sentido" => "ENTRADA",
 			"activo" => 1
+		],
+		[
+			"id" => 14,
+			"codigo" => "TRS",
+			"nombre" => "Traslado salida",
+			"sentido" => "SALIDA",
+			"activo" => 1
+		],
+		[
+			"id" => 15,
+			"codigo" => "TRE",
+			"nombre" => "Traslado entrada",
+			"sentido" => "ENTRADA",
+			"activo" => 1
+		],
+		[
+			"id" => 16,
+			"codigo" => "ATS",
+			"nombre" => "Anulación de traslado salida",
+			"sentido" => "ENTRADA",
+			"activo" => 1
 		]
 	],
 
@@ -2972,6 +3011,42 @@ $config["instalacion"] = [
 			"nombre" => "Anulado",
 			"etiqueta" => "danger",
 			"orden" => 30,
+			"activo" => 1
+		]
+	],
+
+	# Por empresa: estados de traslado (ids usados en Inventario_traslado_model)
+	"inventario_traslado_estado" => [
+		[
+			"id" => 1,
+			"codigo" => "BORRADOR",
+			"nombre" => "Borrador",
+			"etiqueta" => "primary",
+			"orden" => 10,
+			"activo" => 1
+		],
+		[
+			"id" => 2,
+			"codigo" => "ENVIADO",
+			"nombre" => "Enviado",
+			"etiqueta" => "warning",
+			"orden" => 20,
+			"activo" => 1
+		],
+		[
+			"id" => 3,
+			"codigo" => "RECIBIDO",
+			"nombre" => "Recibido",
+			"etiqueta" => "lime",
+			"orden" => 30,
+			"activo" => 1
+		],
+		[
+			"id" => 4,
+			"codigo" => "ANULADO",
+			"nombre" => "Anulado",
+			"etiqueta" => "danger",
+			"orden" => 40,
 			"activo" => 1
 		]
 	],
@@ -3156,6 +3231,136 @@ $config["instalacion"] = [
 			"inicio" => 1,
 			"fin" => 999999999,
 			"correlativo" => 0,
+			"activo" => 1
+		]
+	],
+
+	# Por empresa: unidades de medida comunes (el usuario agrega las demás)
+	"unidad_medida" => [
+		[
+			"id" => 1,
+			"codigo" => "UND",
+			"nombre" => "Unidad",
+			"activo" => 1
+		],
+		[
+			"id" => 2,
+			"codigo" => "DOC",
+			"nombre" => "Docena",
+			"activo" => 1
+		],
+		[
+			"id" => 3,
+			"codigo" => "LB",
+			"nombre" => "Libra",
+			"activo" => 1
+		],
+		[
+			"id" => 4,
+			"codigo" => "OZ",
+			"nombre" => "Onza",
+			"activo" => 1
+		],
+		[
+			"id" => 5,
+			"codigo" => "ARR",
+			"nombre" => "Arroba",
+			"activo" => 1
+		],
+		[
+			"id" => 6,
+			"codigo" => "QQ",
+			"nombre" => "Quintal",
+			"activo" => 1
+		],
+		[
+			"id" => 7,
+			"codigo" => "KG",
+			"nombre" => "Kilogramo",
+			"activo" => 1
+		],
+		[
+			"id" => 8,
+			"codigo" => "ML",
+			"nombre" => "Mililitro",
+			"activo" => 1
+		],
+		[
+			"id" => 9,
+			"codigo" => "LT",
+			"nombre" => "Litro",
+			"activo" => 1
+		],
+		[
+			"id" => 10,
+			"codigo" => "GL",
+			"nombre" => "Galón",
+			"activo" => 1
+		],
+		[
+			"id" => 11,
+			"codigo" => "M",
+			"nombre" => "Metro",
+			"activo" => 1
+		]
+	],
+
+	# Por empresa: equivalencias de las unidades anteriores (1 unidad_medida_id = cantidad unidad_menor_id)
+	"unidad_equivalencia" => [
+		[
+			"id" => 1,
+			"unidad_medida_id" => 6,
+			"unidad_menor_id" => 3,
+			"cantidad" => 100,
+			"activo" => 1
+		],
+		[
+			"id" => 2,
+			"unidad_medida_id" => 6,
+			"unidad_menor_id" => 5,
+			"cantidad" => 4,
+			"activo" => 1
+		],
+		[
+			"id" => 3,
+			"unidad_medida_id" => 5,
+			"unidad_menor_id" => 3,
+			"cantidad" => 25,
+			"activo" => 1
+		],
+		[
+			"id" => 4,
+			"unidad_medida_id" => 3,
+			"unidad_menor_id" => 4,
+			"cantidad" => 16,
+			"activo" => 1
+		],
+		[
+			"id" => 5,
+			"unidad_medida_id" => 7,
+			"unidad_menor_id" => 3,
+			"cantidad" => 2.20462,
+			"activo" => 1
+		],
+		[
+			"id" => 6,
+			"unidad_medida_id" => 10,
+			"unidad_menor_id" => 9,
+			"cantidad" => 3.785,
+			"activo" => 1
+		],
+		[
+			"id" => 7,
+			"unidad_medida_id" => 9,
+			"unidad_menor_id" => 8,
+			"cantidad" => 1000,
+			"activo" => 1
+		],
+		[
+			"id" => 8,
+			"unidad_medida_id" => 2,
+			"unidad_menor_id" => 1,
+			"cantidad" => 12,
 			"activo" => 1
 		]
 	]

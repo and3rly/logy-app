@@ -57,7 +57,7 @@
 					</span>
 				</div>
 
-				<div class="table-responsive">
+				<div class="table-responsive tabla-pantalla">
 					<table class="table table-sm table-hover mb-0">
 						<thead>
 							<tr>

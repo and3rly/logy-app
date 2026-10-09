@@ -151,53 +151,6 @@
 				Elija uno arriba, o haga clic en su nombre en la tabla, para ver su saldo inicial y final.
 			</span>
 		</div>
-
-		<div class="row g-3 mb-3">
-			<div class="col-6 col-xl-3">
-				<div class="d-flex align-items-center gap-3 rounded-3 border bg-body px-3 py-3 h-100 shadow-sm">
-					<span class="icono-suave icono-suave-primario" aria-hidden="true">
-						<i class="fa-solid fa-right-left" />
-					</span>
-					<div class="lh-sm">
-						<div class="small text-body-secondary">Movimientos</div>
-						<div class="fs-5 fw-bold text-body">{{ lista.length }}</div>
-					</div>
-				</div>
-			</div>
-			<div class="col-6 col-xl-3">
-				<div class="d-flex align-items-center gap-3 rounded-3 border bg-body px-3 py-3 h-100 shadow-sm">
-					<span class="icono-suave icono-suave-success" aria-hidden="true">
-						<i class="fa-solid fa-arrow-down" />
-					</span>
-					<div class="lh-sm">
-						<div class="small text-body-secondary">Entradas</div>
-						<div class="fs-5 fw-bold text-success-emphasis">{{ resumen.nentradas }}</div>
-					</div>
-				</div>
-			</div>
-			<div class="col-6 col-xl-3">
-				<div class="d-flex align-items-center gap-3 rounded-3 border bg-body px-3 py-3 h-100 shadow-sm">
-					<span class="icono-suave icono-suave-danger" aria-hidden="true">
-						<i class="fa-solid fa-arrow-up" />
-					</span>
-					<div class="lh-sm">
-						<div class="small text-body-secondary">Salidas</div>
-						<div class="fs-5 fw-bold text-danger-emphasis">{{ resumen.nsalidas }}</div>
-					</div>
-				</div>
-			</div>
-			<div class="col-6 col-xl-3">
-				<div class="d-flex align-items-center gap-3 rounded-3 border bg-body px-3 py-3 h-100 shadow-sm">
-					<span class="icono-suave icono-suave-info" aria-hidden="true">
-						<i class="fa-solid fa-boxes-stacked" />
-					</span>
-					<div class="lh-sm">
-						<div class="small text-body-secondary">Productos con movimiento</div>
-						<div class="fs-5 fw-bold text-body">{{ resumen.productos }}</div>
-					</div>
-				</div>
-			</div>
-		</div>
 	</template>
 
 	<template v-else>
@@ -209,6 +162,8 @@
 					<span class="font-monospace">{{ producto.codigo }}</span>
 					· {{ presentacion ? `Presentación: ${presentacion.nombre}` : `Unidad: ${producto.nunidad}` }}
 					<template v-if="producto.nmarca"> · {{ producto.nmarca }}</template>
+					· Existencia actual:
+					<span class="fw-semibold text-body">{{ formatoCantidad((presentacion ?? producto).existencia) }} {{ presentacion ? presentacion.nombre : producto.nunidad }}</span>
 				</div>
 			</div>
 			<span
@@ -216,63 +171,30 @@
 				class="badge rounded-1 fw-semibold etiqueta-color"
 				:style="estiloEtiqueta(producto.ecategoria)"
 			>{{ producto.ncategoria }}</span>
-			<span class="ms-sm-auto small text-body-secondary">
-				Existencia actual:
-				<span class="fw-semibold text-body">{{ formatoCantidad((presentacion ?? producto).existencia) }} {{ presentacion ? presentacion.nombre : producto.nunidad }}</span>
-			</span>
-		</div>
 
-		<!-- Resumen como una operación: saldo inicial + entradas − salidas = saldo final -->
-		<div class="row g-2 align-items-stretch mb-3">
-			<div class="col-6 col-xl">
-				<div class="d-flex align-items-center gap-3 rounded-3 border bg-body px-3 py-3 h-100 shadow-sm">
-					<span class="icono-suave icono-suave-info" aria-hidden="true">
-						<i class="fa-solid fa-flag" />
-					</span>
-					<div class="lh-sm">
-						<div class="small text-body-secondary">Saldo inicial</div>
-						<div class="fs-5 fw-bold text-body">{{ formatoCantidad(saldoInicial) }}</div>
-						<div class="small text-body-secondary">{{ bform.fdel ? `al iniciar el ${formatoFecha(bform.fdel)}` : 'desde el inicio' }}</div>
-					</div>
+			<!-- Resumen como una operación: saldo inicial + entradas − salidas = saldo final -->
+			<div class="ms-lg-auto d-flex flex-wrap align-items-center gap-3">
+				<div class="lh-sm" :title="bform.fdel ? `Al iniciar el ${formatoFecha(bform.fdel)}` : 'Desde el inicio'">
+					<div class="small text-body-secondary">Saldo inicial</div>
+					<div class="fw-bold text-body">{{ formatoCantidad(saldoInicial) }}</div>
 				</div>
-			</div>
-			<div class="col-auto d-none d-xl-flex align-items-center fs-4 text-body-secondary" aria-hidden="true">+</div>
-			<div class="col-6 col-xl">
-				<div class="d-flex align-items-center gap-3 rounded-3 border bg-body px-3 py-3 h-100 shadow-sm">
-					<span class="icono-suave icono-suave-success" aria-hidden="true">
-						<i class="fa-solid fa-arrow-down" />
-					</span>
-					<div class="lh-sm">
-						<div class="small text-body-secondary">Entradas</div>
-						<div class="fs-5 fw-bold text-success-emphasis">+{{ formatoCantidad(resumen.entradas) }}</div>
-						<div class="small text-body-secondary">{{ plural(resumen.nentradas, 'movimiento', 'movimientos') }}</div>
-					</div>
+				<span class="text-body-secondary" aria-hidden="true">+</span>
+				<div class="lh-sm">
+					<div class="small text-body-secondary">Entradas</div>
+					<div class="fw-bold text-success-emphasis">{{ formatoCantidad(resumen.entradas) }}</div>
 				</div>
-			</div>
-			<div class="col-auto d-none d-xl-flex align-items-center fs-4 text-body-secondary" aria-hidden="true">−</div>
-			<div class="col-6 col-xl">
-				<div class="d-flex align-items-center gap-3 rounded-3 border bg-body px-3 py-3 h-100 shadow-sm">
-					<span class="icono-suave icono-suave-danger" aria-hidden="true">
-						<i class="fa-solid fa-arrow-up" />
-					</span>
-					<div class="lh-sm">
-						<div class="small text-body-secondary">Salidas</div>
-						<div class="fs-5 fw-bold text-danger-emphasis">−{{ formatoCantidad(resumen.salidas) }}</div>
-						<div class="small text-body-secondary">{{ plural(resumen.nsalidas, 'movimiento', 'movimientos') }}</div>
-					</div>
+				<span class="text-body-secondary" aria-hidden="true">−</span>
+				<div class="lh-sm">
+					<div class="small text-body-secondary">Salidas</div>
+					<div class="fw-bold text-danger-emphasis">{{ formatoCantidad(resumen.salidas) }}</div>
 				</div>
-			</div>
-			<div class="col-auto d-none d-xl-flex align-items-center fs-4 text-body-secondary" aria-hidden="true">=</div>
-			<div class="col-6 col-xl">
-				<div class="d-flex align-items-center gap-3 rounded-3 border border-primary-subtle bg-body px-3 py-3 h-100 shadow-sm">
-					<span class="icono-suave icono-suave-primario" aria-hidden="true">
-						<i class="fa-solid fa-boxes-stacked" />
-					</span>
-					<div class="lh-sm">
-						<div class="small text-body-secondary">Saldo final</div>
-						<div class="fs-5 fw-bold" :class="saldoFinal < 0 ? 'text-danger' : 'text-body'">{{ formatoCantidad(saldoFinal) }}</div>
-						<div class="small text-body-secondary">{{ bform.fal ? `al cerrar el ${formatoFecha(bform.fal)}` : 'a la fecha' }}</div>
-					</div>
+				<span class="text-body-secondary" aria-hidden="true">=</span>
+				<div
+					class="lh-sm rounded-2 border border-primary-subtle bg-body px-2 py-1"
+					:title="bform.fal ? `Al cerrar el ${formatoFecha(bform.fal)}` : 'A la fecha'"
+				>
+					<div class="small text-body-secondary">Saldo final</div>
+					<div class="fw-bold" :class="saldoFinal < 0 ? 'text-danger' : 'text-body'">{{ formatoCantidad(saldoFinal) }}</div>
 				</div>
 			</div>
 		</div>
@@ -293,6 +215,10 @@
 						@click="sentido = s.id"
 					>
 						<i v-if="s.icono" class="fa-solid me-1" :class="s.icono" aria-hidden="true" />{{ s.nombre }}
+						<span
+							class="badge rounded-pill ms-1"
+							:class="sentido === s.id ? 'text-bg-light' : 'bg-secondary-subtle text-body-secondary'"
+						>{{ conteoSentido(s.id) }}</span>
 					</button>
 				</div>
 
@@ -312,10 +238,14 @@
 				<span class="small text-body-secondary text-nowrap" aria-live="polite">
 					<span class="fw-semibold text-body">{{ filtrando ? `${visibles.length} de ${lista.length}` : lista.length }}</span>
 					{{ lista.length === 1 ? 'movimiento' : 'movimientos' }}
+					<template v-if="!producto">
+						· <span class="fw-semibold text-body">{{ resumen.productos }}</span>
+						{{ resumen.productos === 1 ? 'producto' : 'productos' }}
+					</template>
 				</span>
 			</div>
 
-			<div class="table-responsive">
+			<div class="table-responsive tabla-pantalla">
 				<table class="table table-sm mb-0">
 					<thead>
 						<tr>
@@ -332,16 +262,6 @@
 						</tr>
 					</thead>
 					<tbody>
-						<!-- Punto de partida del período (solo con un producto) -->
-						<tr v-if="producto" class="align-middle">
-							<td class="ps-3 text-body-secondary">—</td>
-							<td :colspan="conLotes ? 5 : 4" class="text-body-secondary fst-italic">
-								<i class="fa-solid fa-flag me-2" aria-hidden="true" />Saldo inicial
-								{{ bform.fdel ? `al iniciar el ${formatoFecha(bform.fdel)}` : '' }}
-							</td>
-							<td class="text-end pe-3 fw-bold text-body">{{ formatoCantidad(saldoInicial) }}</td>
-						</tr>
-
 						<template v-for="g in grupos" :key="g.dia">
 							<!-- Separador por día -->
 							<tr>
@@ -405,6 +325,16 @@
 								</td>
 							</tr>
 						</template>
+
+						<!-- Punto de partida del período (solo con un producto); al final por el orden descendente -->
+						<tr v-if="producto && !btnBuscar" class="align-middle">
+							<td class="ps-3 text-body-secondary">—</td>
+							<td :colspan="conLotes ? 5 : 4" class="text-body-secondary fst-italic">
+								<i class="fa-solid fa-flag me-2" aria-hidden="true" />Saldo inicial
+								{{ bform.fdel ? `al iniciar el ${formatoFecha(bform.fdel)}` : '' }}
+							</td>
+							<td class="text-end pe-3 fw-bold text-body">{{ formatoCantidad(saldoInicial) }}</td>
+						</tr>
 
 						<tr v-if="btnBuscar">
 							<td :colspan="columnas" class="text-center text-body-secondary">
@@ -520,7 +450,8 @@
 					let res = result.data
 
 					if (res.exito) {
-						this.lista = res.lista ?? []
+						// La API la entrega cronológica (así acumula el saldo); en pantalla, lo más reciente primero
+						this.lista = (res.lista ?? []).reverse()
 						this.lotes = res.lotes ?? []
 						this.saldoInicial = Number(res.saldo_inicial ?? 0)
 					} else {
@@ -751,7 +682,7 @@
 					return g
 				}, [])
 			},
-			// Del período completo (sin filtros de pantalla), para los mosaicos
+			// Del período completo (sin filtros de pantalla), para el resumen y los conteos de los filtros
 			resumen() {
 				let productos = new Set(this.lista.map(m => m.producto_id))
 
@@ -768,6 +699,9 @@
 
 					return t
 				}, { entradas: 0, salidas: 0, nentradas: 0, nsalidas: 0, productos: productos.size })
+			},
+			conteoSentido() {
+				return id => id === "ENTRADA" ? this.resumen.nentradas : id === "SALIDA" ? this.resumen.nsalidas : this.lista.length
 			},
 			totales() {
 				return this.visibles.reduce((t, m) => {

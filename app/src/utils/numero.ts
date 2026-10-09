@@ -24,3 +24,14 @@ export function formatoCantidad(valor: number | string | null | undefined): stri
     maximumFractionDigits: 2
   })
 }
+
+// Equivalencia de una presentación con la unidad de medida, del lado grande al pequeño:
+// factor 100 → "1 Quintal = 100 LB"; factor 0.01 (más pequeña) → "1 QQ = 100 Libra"
+export function equivalencia(presentacion: string, factor: number | string, unidad: string): string {
+  const valor = Number(factor ?? 0)
+  const numero = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 5 })
+
+  return valor > 0 && valor < 1
+    ? `1 ${unidad} = ${numero(Math.round(1 / valor))} ${presentacion}`
+    : `1 ${presentacion} = ${numero(valor)} ${unidad}`
+}

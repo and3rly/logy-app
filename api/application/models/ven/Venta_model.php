@@ -12,6 +12,7 @@ class Venta_model extends Centro_model {
 	public $moneda_id;
 	public $cliente_id = null;
 	public $cotizacion_id = null;
+	public $lista_precio_id = null;
 	public $forma_pago_id;
 	public $venta_estado_id = self::CREADA;
 	public $venta_serie_id;
@@ -132,7 +133,9 @@ class Venta_model extends Centro_model {
 	 * encabezado y líneas, descuento de stock por lote (vence primero), movimientos VTA y,
 	 * si es a crédito, la cuenta por cobrar. Contado queda pagada; crédito, creada hasta que se liquide.
 	 * Facturada queda reservado para la certificación ante el ente.
-	 * $datos: cliente_id, venta_serie_id, forma_pago_id, moneda_id y lineas [{producto_id, unidad_medida_id, cantidad, precio?}]
+	 * $datos: cliente_id, venta_serie_id, forma_pago_id, moneda_id y lineas [{producto_id, unidad_medida_id, cantidad, precio?}];
+	 * lista_precio_id: la elegida en el punto de venta o la de la cotización (null = precio general;
+	 * sin la propiedad se usa la lista del cliente). Desde una cotización también cotizacion_id
 	 */
 	public function registrar($datos)
 	{
@@ -183,6 +186,15 @@ class Venta_model extends Centro_model {
 			return false;
 		}
 
+		# Lista de precios: la elegida en el punto de venta, la de la cotización que se convierte o, si no
+		# se indica, la del cliente; inactiva = precio general
+		$listaId = property_exists($datos, "lista_precio_id") ? $datos->lista_precio_id : $cliente->lista_precio_id;
+		$lista = $listaId ? new Lista_precio_model($listaId) : null;
+
+		if ($lista && (!$lista->esDeLaEmpresa() || (int)$lista->activo !== 1)) {
+			$lista = null;
+		}
+
 		# Productos y totales antes de tocar la base
 		$total = 0;
 		$costo = 0;
@@ -215,8 +227,12 @@ class Venta_model extends Centro_model {
 				$linea->npresentacion = " ({$presentacion->nombre})";
 			}
 
-			# Desde una cotización llega el precio pactado; en el punto de venta, el del producto
-			if ($linea->precio === null && (float)$producto->precio <= 0) {
+			# Desde una cotización llega el precio pactado; en el punto de venta, el de la lista del
+			# cliente o, si el producto no está en ella, el precio general
+			$precioLista = $lista ? $lista->precioDe($producto->id, $linea->producto_presentacion_id) : null;
+			$precioVenta = $precioLista !== null ? $precioLista : round((float)$producto->precio * $factor, 2);
+
+			if ($linea->precio === null && $precioVenta <= 0) {
 				$this->setMensaje("El producto {$producto->nombre} no tiene precio de venta.");
 				return false;
 			}
@@ -231,7 +247,7 @@ class Venta_model extends Centro_model {
 				return false;
 			}
 
-			$linea->precio = $linea->precio === null ? round((float)$producto->precio * $factor, 2) : $linea->precio;
+			$linea->precio = $linea->precio === null ? $precioVenta : $linea->precio;
 			$subtotal = round($linea->cantidad * $linea->precio, 2);
 			$linea->descuento_total = round($subtotal * $linea->descuento / 100, 2);
 			$linea->total_precio = $subtotal - $linea->descuento_total;
@@ -281,6 +297,8 @@ class Venta_model extends Centro_model {
 			"moneda_id" => $datos->moneda_id,
 			"cliente_id" => $cliente->id,
 			"cotizacion_id" => verPropiedad($datos, "cotizacion_id", null),
+			# La lista indicada (de una cotización, la que se cotizó aunque ya esté inactiva: sus precios vienen pactados)
+			"lista_precio_id" => property_exists($datos, "lista_precio_id") ? $datos->lista_precio_id : ($lista ? $lista->getPK() : null),
 			"forma_pago_id" => $datos->forma_pago_id,
 			"venta_estado_id" => $credito ? self::CREADA : self::PAGADA,
 			"venta_serie_id" => $serie->id,

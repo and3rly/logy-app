@@ -4,7 +4,8 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 # Primera instalación: crea la empresa y carga los catálogos de config/instalacion.php
 class Instalacion_model extends CI_Model {
 
-	# Se instalan antes de la empresa; si la tabla ya tiene datos no se toca
+	# Se instalan antes de la empresa; si la tabla ya tiene datos solo se agregan los ids que faltan
+	# (ej. una opción de menú nueva cuando la base trae el menú de antes)
 	private $globales = [
 		"pais",
 		"departamento",
@@ -21,9 +22,12 @@ class Instalacion_model extends CI_Model {
 		"cotizacion_estado",
 		"inventario_ajuste_estado",
 		"inventario_ajuste_tipo",
+		"inventario_traslado_estado",
 		"inventario_estado",
 		"inventario_tipo",
-		"forma_pago"
+		"forma_pago",
+		"unidad_medida",
+		"unidad_equivalencia"
 	];
 
 	private $mensaje = "";
@@ -112,9 +116,7 @@ class Instalacion_model extends CI_Model {
 
 		try {
 			foreach ($this->globales as $tabla) {
-				if ($this->db->count_all($tabla) === 0) {
-					$this->insertar($tabla, $this->getCatalogo($tabla));
-				}
+				$this->insertar($tabla, $this->faltantes($tabla));
 			}
 
 			$this->insertar("empresa", [$empresa]);
@@ -209,6 +211,16 @@ class Instalacion_model extends CI_Model {
 		$this->db->db_debug = $debug;
 
 		return $exito;
+	}
+
+	# Filas del catálogo cuyo id todavía no existe en la tabla (los existentes no se modifican)
+	private function faltantes($tabla)
+	{
+		$existentes = array_map("intval", array_column($this->db->select("id")->get($tabla)->result_array(), "id"));
+
+		return array_values(array_filter($this->getCatalogo($tabla), function ($fila) use ($existentes) {
+			return !in_array((int)$fila["id"], $existentes, true);
+		}));
 	}
 
 	private function conEmpresa($filas, $empresa_id)

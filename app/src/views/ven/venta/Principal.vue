@@ -8,10 +8,10 @@
 				title="Las ventas y la existencia son de esta sucursal"
 			>
 				<i class="fa-solid fa-store text-primary" aria-hidden="true" />
-				<span class="fw-semibold text-body">{{ sucursal }}</span>
+				<span class="fw-semibold text-body d-none d-sm-inline">{{ sucursal }}</span>
 			</span>
-			<button type="button" class="btn btn-suave-info" @click="verLista = true">
-				<i class="fa-solid fa-list me-1" aria-hidden="true" />Ventas del día
+			<button type="button" class="btn btn-suave-info" title="Ventas del día" @click="verLista = true">
+				<i class="fa-solid fa-list me-sm-1" aria-hidden="true" /><span class="d-none d-sm-inline">Ventas del día</span>
 			</button>
 		</PageHeader>
 
@@ -52,13 +52,14 @@
 									placeholder="Escanee o busque por código, código de barras o nombre"
 									aria-label="Buscar producto"
 								>
-								<span class="input-group-text bg-body small text-body-secondary" aria-live="polite">
+								<span class="input-group-text bg-body small text-body-secondary d-none d-sm-flex" aria-live="polite">
 									{{ productosFiltrados.length }} {{ productosFiltrados.length === 1 ? 'producto' : 'productos' }}
 								</span>
 							</div>
 
-							<!-- Categorías con productos: un toque filtra; el punto lleva el color de la categoría -->
-							<div v-if="categoriasConProductos.length > 1" class="d-flex flex-wrap gap-2 mt-3" role="group" aria-label="Filtrar por categoría">
+							<!-- Categorías con productos: un toque filtra; el punto lleva el color de la categoría.
+								En el teléfono van en un solo renglón con desplazamiento horizontal -->
+							<div v-if="categoriasConProductos.length > 1" class="d-flex flex-nowrap flex-md-wrap overflow-x-auto gap-2 mt-3 pb-1" role="group" aria-label="Filtrar por categoría">
 								<button
 									type="button"
 									class="filtro-pv"
@@ -85,7 +86,7 @@
 							</div>
 						</form>
 
-						<div class="p-3 overflow-auto bg-body-tertiary rounded-bottom" style="max-height: calc(100vh - 19rem)">
+						<div class="lista-pv p-2 p-sm-3 bg-body-tertiary rounded-bottom">
 							<div v-if="cargando" class="text-center text-body-secondary py-5">
 								<span class="spinner-border spinner-border-sm me-1" aria-hidden="true" />Cargando productos...
 							</div>
@@ -94,17 +95,17 @@
 								{{ termino || categoria ? 'Sin productos para la búsqueda' : 'No hay productos activos' }}
 							</div>
 
-							<div v-else class="row row-cols-2 row-cols-md-3 row-cols-xxl-4 g-3">
+							<div v-else class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xxl-4 g-2 g-sm-3">
 								<div v-for="p in productosFiltrados" :key="llave(p)" class="col position-relative">
-									<!-- Abrir la presentación en unidades sueltas (fuera de la tarjeta: no se anidan botones) -->
+									<!-- Abrir la medida grande en la pequeña (fuera de la tarjeta: no se anidan botones) -->
 									<button
-										v-if="p.producto_presentacion_id && disponible(p) >= 1"
+										v-if="sePuedeAbrir(p) && disponible(p) >= 1"
 										type="button"
-										class="btn btn-sm btn-light border shadow-sm position-absolute top-0 start-0 mt-2 ms-3 z-1"
-										:title="`Abrir ${p.npresentacion} en ${p.nunidad}`"
+										class="btn btn-sm btn-light border shadow-sm position-absolute top-0 start-0 mt-2 ms-2 ms-sm-3 z-1"
+										:title="`Abrir ${p.npresentacion || p.nunidad}`"
 										@click="abrirPresentacion(p)"
 									>
-										<i class="fa-solid fa-box-open me-1" aria-hidden="true" />Abrir
+										<i class="fa-solid fa-box-open me-sm-1" aria-hidden="true" /><span class="d-none d-sm-inline">Abrir</span>
 									</button>
 									<button
 										type="button"
@@ -115,7 +116,7 @@
 										@click="agregar(p)"
 									>
 										<!-- Foto; sin foto o si no carga, un icono -->
-										<div class="position-relative w-100 border-bottom">
+										<div class="producto-pv-foto position-relative w-100 border-bottom">
 											<div class="ratio ratio-4x3 bg-body">
 												<img
 													v-if="p.foto && !fotoFallida[p.producto_id]"
@@ -174,12 +175,21 @@
 				</card>
 			</div>
 
-			<!-- Ticket: acompaña al desplazarse -->
-			<div class="col-12 col-lg-5 col-xxl-4 position-sticky" style="top: 5rem">
+			<!-- Ticket: acompaña al desplazarse; en el teléfono es un panel que sube desde abajo -->
+			<div class="ticket-pv col-12 col-lg-5 col-xxl-4">
+				<div
+					id="ventaPanel"
+					ref="panelVenta"
+					class="offcanvas-lg offcanvas-bottom venta-panel-pv"
+					tabindex="-1"
+					aria-labelledby="ventaPanelTitulo"
+				>
+				<div class="offcanvas-body d-block p-0">
 				<card>
 					<card-header>
-						<span>Venta actual</span>
+						<span id="ventaPanelTitulo">Venta actual</span>
 						<span class="ms-auto small fw-normal text-body-secondary">{{ unidades }} {{ unidades === 1 ? 'producto' : 'productos' }}</span>
+						<button type="button" class="btn-close ms-2 d-lg-none" aria-label="Cerrar" @click="cerrarPanel" />
 					</card-header>
 					<card-body>
 						<div class="row g-2 mb-3">
@@ -191,6 +201,14 @@
 									:departamentos="catalogo.departamentos"
 									:municipios="catalogo.municipios"
 								/>
+							</div>
+							<!-- Al elegir el cliente toma su lista; el vendedor la puede cambiar para esta venta -->
+							<div v-if="catalogo.listas_precio.length > 0" class="col-12">
+								<label for="ventaListaPrecio" class="form-label small mb-1">Lista de precios</label>
+								<select id="ventaListaPrecio" v-model="listaPrecioId" class="form-select">
+									<option :value="null">Precio general</option>
+									<option v-for="l in catalogo.listas_precio" :key="l.id" :value="String(l.id)">{{ l.nombre }}</option>
+								</select>
 							</div>
 							<div class="col-6">
 								<label for="ventaSerie" class="form-label small mb-1">Serie *</label>
@@ -309,6 +327,24 @@
 						</div>
 					</card-body>
 				</card>
+				</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Teléfono: total y acceso a la venta siempre a la vista -->
+		<div class="d-lg-none" style="height: 4.5rem" aria-hidden="true" />
+		<div class="d-lg-none fixed-bottom border-top bg-body shadow-lg px-3 py-2">
+			<div class="d-flex align-items-center gap-3">
+				<div class="min-w-0 lh-sm">
+					<div class="small text-body-secondary">
+						<i class="fa-solid fa-cart-shopping me-1" aria-hidden="true" />{{ formatoCantidad(unidades) }} {{ unidades === 1 ? 'producto' : 'productos' }}
+					</div>
+					<div class="fs-5 fw-bold text-body text-nowrap">{{ simbolo }} {{ formatoMonto(total) }}</div>
+				</div>
+				<button type="button" class="btn btn-primary ms-auto" aria-controls="ventaPanel" @click="abrirPanel">
+					<i class="fa-solid fa-receipt me-1" aria-hidden="true" />Ver venta
+				</button>
 			</div>
 		</div>
 
@@ -346,6 +382,7 @@
 	import Lista from './Lista.vue'
 	import BuscarCliente from './BuscarCliente.vue'
 	import AbrirPresentacion from './AbrirPresentacion.vue'
+	import { Offcanvas } from 'bootstrap'
 	import api, { mensajeError } from '@/services/api'
 	import { imprimirPdf } from '@/utils/imprimir'
 	import { normalizar } from '@/utils/texto'
@@ -368,11 +405,16 @@
 				estados: [],
 				categorias: [],
 				departamentos: [],
-				municipios: []
+				municipios: [],
+				listas_precio: []
 			},
 			productos: [],
 			// null = consumidor final
 			cliente: null,
+			// Lista de precios de esta venta (null = precio general) y sus precios: { "producto-presentación": precio }
+			listaPrecioId: null,
+			precios: {},
+			consultaPrecios: 0,
 			termino: "",
 			categoria: null,
 			ticket: [],
@@ -391,10 +433,11 @@
 		},
 		mounted() {
 			window.addEventListener("keydown", this.atajos)
-			this.$refs.buscador?.focus()
+			this.enfocarBuscador()
 		},
 		beforeUnmount() {
 			window.removeEventListener("keydown", this.atajos)
+			Offcanvas.getInstance(this.$refs.panelVenta)?.dispose()
 		},
 		methods: {
 			getDatos() {
@@ -440,6 +483,59 @@
 					let p = this.articulos.find(e => this.llave(e) === l.llave)
 					l.existencia = p ? Number(p.existencia) : 0
 				}
+			},
+			// Precios de la lista elegida; sin lista (o inactiva) todo va al precio general
+			cargarPrecios(listaId) {
+				let consulta = ++this.consultaPrecios
+
+				if (!listaId) {
+					this.asignarPrecios({})
+					return
+				}
+
+				api
+				.get(`/mnt/lista_precio/get_precios/${listaId}`)
+				.then(result => {
+					// Si mientras tanto se eligió otra lista, esta respuesta ya no sirve
+					if (consulta !== this.consultaPrecios) {
+						return
+					}
+
+					let precios = {}
+
+					for (let f of result.data.lista ?? []) {
+						precios[`${f.producto_id}-${f.producto_presentacion_id ?? 0}`] = Number(f.precio)
+					}
+
+					this.asignarPrecios(precios)
+				})
+				.catch(e => {
+					this.$toast.error(mensajeError(e, "No se pudieron cargar los precios de la lista."))
+				})
+			},
+			// Las líneas del ticket toman el nuevo precio; las que el vendedor cambió conservan el suyo
+			asignarPrecios(precios) {
+				this.precios = precios
+
+				for (let l of this.ticket) {
+					let p = this.articulos.find(e => this.llave(e) === l.llave)
+
+					if (!p) {
+						continue
+					}
+
+					let nuevo = Number(p.precio)
+
+					if (l.precio === l.precio_lista) {
+						l.precio = nuevo
+					}
+
+					l.precio_lista = nuevo
+				}
+			},
+			// Precio de la lista elegida para el artículo o, si no está en ella, el general
+			precioDe(productoId, presentacionId, general) {
+				return this.precios[`${productoId}-${presentacionId ?? 0}`] ?? general
 			},
 			// Efectivo por defecto; si no existe, la primera que no sea crédito
 			formaContado() {
@@ -553,7 +649,8 @@
 			vaciar() {
 				this.ticket = []
 				this.cliente = null
-				this.$refs.buscador?.focus()
+				this.listaPrecioId = null
+				this.enfocarBuscador()
 			},
 			cobrar() {
 				if (this.ticket.length === 0 || this.btnGuardar) {
@@ -570,6 +667,8 @@
 					return
 				}
 
+				// El modal de cobro no se abre encima del panel del teléfono
+				this.cerrarPanel()
 				this.$refs.cobro?.abrir()
 			},
 			// El modal de cobro confirmó: se registra la venta completa
@@ -580,6 +679,7 @@
 				.post("/ven/venta/guardar", {
 					...this.form,
 					cliente_id: this.cliente?.id ?? null,
+					lista_precio_id: this.listaPrecioId,
 					lineas: this.ticket.map(l => ({
 						producto_id: l.producto_id,
 						unidad_medida_id: l.unidad_medida_id,
@@ -600,9 +700,15 @@
 						this.ultima = res.linea
 						this.ticket = []
 						this.cliente            = null
+						this.listaPrecioId      = null
 						this.form.forma_pago_id = this.formaContado()
 						this.actualizarProductos(res.productos ?? this.productos)
-						this.$refs.buscador?.focus()
+						this.enfocarBuscador()
+
+						// En el teléfono, arriba queda el aviso con "Imprimir ticket"
+						if (!this.esEscritorio()) {
+							window.scrollTo({ top: 0, behavior: "smooth" })
+						}
 					} else {
 						this.$toast.error(res.mensaje)
 						this.getProductos()
@@ -630,7 +736,23 @@
 			volverPuntoVenta() {
 				this.verLista = false
 				this.getProductos()
-				this.$nextTick(() => this.$refs.buscador?.focus())
+				this.$nextTick(() => this.enfocarBuscador())
+			},
+			esEscritorio() {
+				return window.matchMedia("(min-width: 992px)").matches
+			},
+			// En el teléfono el foco abriría el teclado
+			enfocarBuscador() {
+				if (this.esEscritorio()) {
+					this.$refs.buscador?.focus()
+				}
+			},
+			// Panel de la venta en el teléfono (en escritorio es la columna derecha)
+			abrirPanel() {
+				Offcanvas.getOrCreateInstance(this.$refs.panelVenta).show()
+			},
+			cerrarPanel() {
+				Offcanvas.getInstance(this.$refs.panelVenta)?.hide()
 			},
 			// F9 cobra; no aplica con un modal abierto (el de cobro tiene su propio Enter)
 			atajos(e) {
@@ -649,7 +771,16 @@
 					? "text-warning-emphasis"
 					: "text-success-emphasis"
 			},
-			// Las presentaciones que ya están en el ticket no se pueden abrir
+			// Se abre una presentación más grande que la unidad, o la unidad si tiene presentaciones más pequeñas
+			// (1 Quintal = 100 Libras)
+			sePuedeAbrir(p) {
+				if (p.producto_presentacion_id) {
+					return Number(p.factor) > 1
+				}
+
+				return (p.presentaciones ?? []).some(pre => Number(pre.activo) === 1 && Number(pre.factor) < 1)
+			},
+			// Lo que ya está en el ticket no se puede abrir
 			abrirPresentacion(p) {
 				this.$refs.abrirPresentacion?.abrir(p, this.disponible(p))
 			},
@@ -672,17 +803,22 @@
 				return useSesionStore().usuario?.sucursal?.nombre ?? ""
 			},
 			// Lo que se puede vender: cada producto en su unidad de medida y, después, en cada presentación
-			// activa (precio y existencia propios; el mínimo es solo de la unidad)
+			// activa (precio y existencia propios; el mínimo es solo de la unidad). El precio es el de la
+			// lista del cliente si el artículo está en ella
 			articulos() {
 				return this.productos.flatMap(p => [
-					p,
+					{
+						...p,
+						precio: this.precioDe(p.producto_id, null, p.precio)
+					},
 					...(p.presentaciones ?? [])
 					.filter(pre => Number(pre.activo) === 1)
 					.map(pre => ({
 						...p,
 						producto_presentacion_id: pre.producto_presentacion_id,
 						npresentacion: pre.nombre,
-						precio: pre.precio,
+						factor: pre.factor,
+						precio: this.precioDe(p.producto_id, pre.producto_presentacion_id, pre.precio),
 						costo: pre.costo,
 						existencia: pre.existencia,
 						existencia_minima: 0
@@ -735,6 +871,16 @@
 			},
 			unidades() {
 				return this.ticket.reduce((s, l) => s + l.cantidad, 0)
+			}
+		},
+		watch: {
+			// Al elegir o quitar el cliente se propone su lista (si está activa) o el precio general
+			cliente(nuevo) {
+				let lista = this.catalogo.listas_precio.find(l => String(l.id) === String(nuevo?.lista_precio_id ?? ""))
+				this.listaPrecioId = lista ? String(lista.id) : null
+			},
+			listaPrecioId(valor) {
+				this.cargarPrecios(valor)
 			}
 		},
 		components: {

@@ -157,7 +157,7 @@ class Inventario_importacion_model extends CI_Model {
 			"No incluya el código interno: el sistema lo genera con el prefijo configurado en la empresa (PRD-000001, PRD-000002...).",
 			"El producto ya existe si coincide su código de barras o, si la fila no trae, su nombre (sin importar mayúsculas ni tildes). Si existe se usa ese producto y no se modifican sus datos.",
 			"Marca, categoría y unidad de medida se buscan por nombre; si no existen se crean automáticamente.",
-			"Todo el inventario entra a la sucursal con la que inició sesión. Cada sucursal tiene un solo inventario inicial.",
+			"Todo el inventario entra a la sucursal con la que inició sesión. Puede cargarse por partes (varios inventarios iniciales); si un producto ya entró con otro, se avisa y la cantidad se suma.",
 			"Un mismo producto con varias fechas de vencimiento va en varias filas (una por lote), repitiendo los datos del producto.",
 			"Si el producto ya tiene existencia en la sucursal, o se repite el mismo lote, las cantidades se suman.",
 			"Montos con punto decimal. Fechas en formato dd/mm/aaaa."
@@ -303,6 +303,7 @@ class Inventario_importacion_model extends CI_Model {
 		];
 
 		foreach ($filas as &$fila) {
+			$fila["advertencias"] = [];
 			$this->validarFila($fila);
 
 			if (count($fila["errores"]) > 0) {
@@ -368,6 +369,18 @@ class Inventario_importacion_model extends CI_Model {
 		}
 		unset($fila);
 
+		# Aviso (no bloquea): el producto ya entró con otro inventario inicial procesado de la sucursal
+		$previos = $this->inventariosProcesados(array_column(array_filter($filas, function ($f) {
+			return count($f["errores"]) === 0 && $f["accion"] === "existente";
+		}), "producto_id"));
+
+		foreach ($filas as &$fila) {
+			if (count($fila["errores"]) === 0 && isset($fila["producto_id"], $previos[$fila["producto_id"]])) {
+				$fila["advertencias"][] = "Ya se cargó en " . implode(", ", $previos[$fila["producto_id"]]) . "; la cantidad se sumará otra vez.";
+			}
+		}
+		unset($fila);
+
 		$validas = array_filter($filas, function ($f) {
 			return count($f["errores"]) === 0;
 		});
@@ -378,6 +391,9 @@ class Inventario_importacion_model extends CI_Model {
 				"filas" => count($filas),
 				"validas" => count($validas),
 				"errores" => count($filas) - count($validas),
+				"advertencias" => count(array_filter($validas, function ($f) {
+					return count($f["advertencias"]) > 0;
+				})),
 				"productos_nuevos" => count(array_unique(array_column(array_filter($validas, function ($f) {
 					return $f["accion"] === "nuevo";
 				}), "llave"))),
@@ -643,6 +659,40 @@ class Inventario_importacion_model extends CI_Model {
 		}
 
 		return null;
+	}
+
+	# Inventarios iniciales procesados de la sucursal que traen cada producto: [producto_id => [numero, ...]]
+	private function inventariosProcesados($productos)
+	{
+		$productos = array_values(array_unique(array_map("intval", $productos)));
+
+		if (count($productos) === 0) {
+			return [];
+		}
+
+		$tmp = $this->db
+		->distinct()
+		->select("
+			a.producto_id,
+			b.numero")
+		->from("inventario_det a")
+		->join("inventario_enc b", "b.id = a.inventario_enc_id")
+		->where("b.empresa_id", $this->_ses->empresa_id)
+		->where("b.sucursal_id", $this->_ses->sucursal_id)
+		->where("b.inventario_tipo_id", Inventario_enc_model::INICIAL)
+		->where("b.inventario_estado_id", Inventario_enc_model::PROCESADO)
+		->where_in("a.producto_id", $productos)
+		->order_by("b.numero", "asc")
+		->get()
+		->result();
+
+		$previos = [];
+
+		foreach ($tmp as $row) {
+			$previos[(int)$row->producto_id][] = $row->numero;
+		}
+
+		return $previos;
 	}
 
 	# Producto activo de la empresa por código de barras o, si la fila no trae, por nombre

@@ -15,6 +15,7 @@ class Cliente_model extends Centro_model {
 	public $credito = 0;
 	public $credito_limite = null;
 	public $credito_dias = 0;
+	public $lista_precio_id = null;
 	public $municipio_id = null;
 	public $empresa_id;
 	public $usuario_id;

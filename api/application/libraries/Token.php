@@ -27,7 +27,9 @@ class Token {
 	{
 		$ahora = time();
 
+		# bd: el token solo sirve en la base (cliente/subdominio) donde se inició sesión
 		$datos = array_merge((array)$datos, [
+			"bd"  => get_instance()->db->database,
 			"iat" => $ahora,
 			"exp" => $ahora + $this->_duracion
 		]);
@@ -38,7 +40,13 @@ class Token {
 	public function validar($token)
 	{
 		try {
-			return JWT::decode((string)$token, new Key($this->_llave, $this->_algoritmo));
+			$datos = JWT::decode((string)$token, new Key($this->_llave, $this->_algoritmo));
+
+			if (!isset($datos->bd) || $datos->bd !== get_instance()->db->database) {
+				return null;
+			}
+
+			return $datos;
 		} catch (\Throwable $e) {
 			return null;
 		}

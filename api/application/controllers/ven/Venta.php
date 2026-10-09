@@ -13,7 +13,8 @@ class Venta extends CI_Controller {
 			"Stock_model",
 			"Movimiento_model",
 			"fin/Cuenta_cobrar_model",
-			"mnt/Cliente_model"
+			"mnt/Cliente_model",
+			"mnt/Lista_precio_model"
 		]);
 		$this->load->model("Catalogo_model", "catalogo");
 		$this->output->set_content_type("application/json");
@@ -48,6 +49,7 @@ class Venta extends CI_Controller {
 				"estados"     => $this->catalogo->verVentaEstados(["_todos" => true]),
 				"categorias"  => $this->catalogo->verCategorias(["_todos" => true]),
 				"productos"   => $this->Stock_model->existencias(),
+				"listas_precio" => $this->catalogo->verListasPrecio(),
 				# Para crear un cliente desde el punto de venta
 				"municipios"    => $this->catalogo->verMunicipios(),
 				"departamentos" => $this->catalogo->verDepartamentos()
@@ -91,9 +93,15 @@ class Venta extends CI_Controller {
 				verPropiedad($datos, "forma_pago_id") &&
 				verPropiedad($datos, "moneda_id")) {
 
-				# El vendedor puede cambiar el precio (no menor al costo); descuento y
-				# cotización solo los pone la conversión de una cotización
+				# El vendedor puede cambiar el precio (no menor al costo) y elegir la lista de precios
+				# (null = precio general); descuento y cotización solo los pone la conversión de una cotización
 				unset($datos->cotizacion_id);
+
+				$lista = verPropiedad($datos, "lista_precio_id", null);
+
+				if (!$lista) {
+					$datos->lista_precio_id = null;
+				}
 
 				foreach ((array)verPropiedad($datos, "lineas", []) as $linea) {
 					if (is_object($linea)) {
@@ -103,7 +111,12 @@ class Venta extends CI_Controller {
 
 				$venta = new Venta_model();
 
-				if ($venta->registrar($datos)) {
+				if ($lista && !$this->catalogo->verListasPrecio([
+					"id" => $lista,
+					"_uno" => true
+				])) {
+					$data["mensaje"] = "La lista de precios no existe o está inactiva.";
+				} else if ($venta->registrar($datos)) {
 					$data["exito"] = 1;
 					$data["mensaje"] = "Venta {$venta->correlativo} registrada.";
 					$data["linea"] = $venta->getInfo();

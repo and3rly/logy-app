@@ -20,6 +20,17 @@
 				</div>
 			</div>
 
+			<!-- Al elegir el cliente toma su lista; se puede cambiar. Aplica a los productos que se agreguen después de Guardar -->
+			<div v-if="listasDisponibles.length > 0" class="mb-3">
+				<label for="selectListaPrecioCot" class="form-label">Lista de precios</label>
+				<select id="selectListaPrecioCot" v-model="form.lista_precio_id" class="form-select">
+					<option :value="null">Precio general</option>
+					<option v-for="l in listasDisponibles" :key="l.id" :value="String(l.id)">
+						{{ l.nombre }}{{ Number(l.activo) !== 1 ? ' (inactiva)' : '' }}
+					</option>
+				</select>
+			</div>
+
 			<div class="row g-2 mb-3">
 				<div class="col-6">
 					<label for="inputValidaHasta" class="form-label">Válida hasta <span class="text-danger">*</span></label>
@@ -176,6 +187,7 @@
 
 			if (this.pk === "") {
 				this.fbase.cliente_id          = null
+				this.fbase.lista_precio_id     = null
 				this.fbase.forma_pago_id       = null
 				this.fbase.moneda_id           = this.monedaDefecto ? String(this.monedaDefecto) : null
 				this.fbase.cotizacion_serie_id = this.catalogo.series.length ? String(this.catalogo.series[0].id) : null
@@ -191,12 +203,15 @@
 			cargar() {
 				this.setDataForm(this.cotizacion)
 
-				this.form.forma_pago_id = this.cotizacion.forma_pago_id ? String(this.cotizacion.forma_pago_id) : null
-				this.form.moneda_id     = String(this.cotizacion.moneda_id)
+				this.form.forma_pago_id   = this.cotizacion.forma_pago_id ? String(this.cotizacion.forma_pago_id) : null
+				this.form.moneda_id       = String(this.cotizacion.moneda_id)
+				this.form.lista_precio_id = this.cotizacion.lista_precio_id ? String(this.cotizacion.lista_precio_id) : null
+				// Con la lista de la cotización (no la del cliente): el watch de cliente la vuelve a poner tal cual
 				this.cliente = this.cotizacion.cliente_id ? {
 					id: this.cotizacion.cliente_id,
 					nombre: this.cotizacion.cliente_nombre,
-					identificacion: this.cotizacion.cliente_identificacion
+					identificacion: this.cotizacion.cliente_identificacion,
+					lista_precio_id: this.cotizacion.lista_precio_id
 				} : null
 			},
 			// Opciones activas, más la que ya tiene la cotización aunque esté inactiva
@@ -241,11 +256,19 @@
 				}
 
 				return dias === 1 ? "1 día" : `${dias} días`
+			},
+			// Listas activas, más la que ya tiene la cotización aunque esté inactiva
+			listasDisponibles() {
+				return this.disponibles(this.catalogo.listas_precio, this.cotizacion?.lista_precio_id)
 			}
 		},
 		watch: {
+			// Al cambiar el cliente se propone su lista (si se puede elegir) o el precio general
 			cliente(valor) {
-				this.form.cliente_id = valor ? valor.id : null
+				let lista = this.listasDisponibles.find(l => String(l.id) === String(valor?.lista_precio_id ?? ""))
+
+				this.form.cliente_id      = valor ? valor.id : null
+				this.form.lista_precio_id = lista ? String(lista.id) : null
 			},
 			pk(valor) {
 				if (valor) {

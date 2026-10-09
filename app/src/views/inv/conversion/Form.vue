@@ -2,49 +2,51 @@
 	<form @submit.prevent="enviar" autocomplete="off">
 		<fieldset :disabled="btnGuardar">
 			<div class="row g-3">
+				<div v-if="!fijo" class="col-12 col-md-7">
+					<label for="selectProductoConversion" class="form-label">Producto <span class="text-danger">*</span></label>
+					<select id="selectProductoConversion" v-model="form.producto_id" class="form-select" required>
+						<option :value="null" disabled>Seleccionar...</option>
+						<option v-for="p in productos" :key="p.producto_id" :value="String(p.producto_id)">{{ p.codigo }} · {{ p.nombre }}</option>
+					</select>
+				</div>
+
+				<div v-if="!fijo?.producto_presentacion_id" class="col-12" :class="{ 'col-md-5': !fijo }">
+					<label for="selectPresentacionConversion" class="form-label">Presentación <span class="text-danger">*</span></label>
+					<select id="selectPresentacionConversion" v-model="form.producto_presentacion_id" class="form-select" required :disabled="!producto">
+						<option :value="null" disabled>Seleccionar...</option>
+						<option v-for="pre in presentaciones" :key="pre.producto_presentacion_id" :value="String(pre.producto_presentacion_id)">
+							{{ pre.nombre }} ({{ equivalencia(pre.nombre, pre.factor, producto?.nunidad ?? '') }})
+						</option>
+					</select>
+				</div>
+
+				<!-- Abrir: de la medida grande a la pequeña; armar: al revés. Sirve con la presentación más grande o más pequeña que la unidad -->
 				<div v-if="!fijo" class="col-12">
 					<span class="form-label d-block">Sentido</span>
 					<div class="btn-group w-100" role="group" aria-label="Sentido de la conversión">
-						<template v-for="s in sentidos" :key="s.valor">
+						<template v-for="a in acciones" :key="a.valor">
 							<input
-								:id="`conversion${s.valor}`"
-								v-model="form.sentido"
+								:id="`conversion${a.valor}`"
+								v-model="form.accion"
 								type="radio"
 								class="btn-check"
-								name="sentidoConversion"
-								:value="s.valor"
+								name="accionConversion"
+								:value="a.valor"
 							>
-							<label class="btn" :class="form.sentido === s.valor ? 'btn-primary' : 'btn-outline-secondary'" :for="`conversion${s.valor}`">
-								<i class="fa-solid me-1" :class="s.icono" aria-hidden="true" />{{ s.texto }}
+							<label class="btn" :class="form.accion === a.valor ? 'btn-primary' : 'btn-outline-secondary'" :for="`conversion${a.valor}`">
+								<i class="fa-solid me-1" :class="a.icono" aria-hidden="true" />{{ a.texto }}
 							</label>
 						</template>
 					</div>
-					<div class="form-text">{{ explosion ? 'Abre presentaciones y las pasa a unidades sueltas.' : 'Arma presentaciones con unidades sueltas.' }}</div>
+					<div class="form-text">
+						<template v-if="presentacion">{{ abrir ? `Pasa ${grande.nombre} a ${pequena.nombre}.` : `Junta ${pequena.nombre} para formar ${grande.nombre}.` }}</template>
+						<template v-else>Abrir pasa la medida grande a la pequeña; armar, al revés.</template>
+					</div>
 				</div>
-
-				<template v-if="!fijo">
-					<div class="col-12 col-md-7">
-						<label for="selectProductoConversion" class="form-label">Producto <span class="text-danger">*</span></label>
-						<select id="selectProductoConversion" v-model="form.producto_id" class="form-select" required>
-							<option :value="null" disabled>Seleccionar...</option>
-							<option v-for="p in productos" :key="p.producto_id" :value="String(p.producto_id)">{{ p.codigo }} · {{ p.nombre }}</option>
-						</select>
-					</div>
-
-					<div class="col-12 col-md-5">
-						<label for="selectPresentacionConversion" class="form-label">Presentación <span class="text-danger">*</span></label>
-						<select id="selectPresentacionConversion" v-model="form.producto_presentacion_id" class="form-select" required :disabled="!producto">
-							<option :value="null" disabled>Seleccionar...</option>
-							<option v-for="pre in presentaciones" :key="pre.producto_presentacion_id" :value="String(pre.producto_presentacion_id)">
-								{{ pre.nombre }} ({{ formatoCantidad(pre.factor) }} {{ producto?.nunidad }})
-							</option>
-						</select>
-					</div>
-				</template>
 
 				<div class="col-12" :class="{ 'col-md-4': !fijo }">
 					<label for="inputCantidadConversion" class="form-label">
-						{{ presentacion ? `Cantidad de ${presentacion.nombre}` : 'Cantidad' }} <span class="text-danger">*</span>
+						{{ presentacion ? `${grande.nombre} a ${abrir ? 'abrir' : 'armar'}` : 'Cantidad' }} <span class="text-danger">*</span>
 					</label>
 					<input
 						id="inputCantidadConversion"
@@ -71,7 +73,7 @@
 						type="text"
 						class="form-control"
 						maxlength="300"
-						:placeholder="explosion ? 'Ej. Caja abierta para venta al detalle' : 'Ej. Cajas armadas para despacho'"
+						:placeholder="abrir ? 'Ej. Abierto para venta al detalle' : 'Ej. Armado para despacho'"
 					>
 				</div>
 
@@ -110,9 +112,9 @@
 
 <script>
 	import Accion from '@/mixins/Accion.js'
-	import { formatoCantidad } from '@/utils/numero'
+	import { formatoCantidad, equivalencia } from '@/utils/numero'
 
-	const EXPLOSION = "EXPLOSION"
+	const ABRIR = "abrir"
 
 	export default {
 		name: "FormConversion",
@@ -122,13 +124,14 @@
 				type: Array,
 				required: true,
 			},
-			// { sentido, producto_id, producto_presentacion_id }: fija la conversión (ej. abrir una caja desde el punto de venta)
+			// { producto_id, producto_presentacion_id }: abre esa medida desde el punto de venta.
+			// Sin presentación se abre la unidad de medida en una de sus presentaciones más pequeñas
 			fijo: {
 				type: Object,
 				required: false,
 				default: null,
 			},
-			// Tope de presentaciones a abrir cuando ya hay algunas en el ticket del punto de venta
+			// Tope de lo que se puede abrir cuando ya hay algo en el ticket del punto de venta
 			tope: {
 				type: Number,
 				required: false,
@@ -138,11 +141,7 @@
 		emits: ["actualizar", "cancelar"],
 		mixins: [Accion],
 		data: () => ({
-			errorCantidad: "",
-			sentidos: [
-				{ valor: "EXPLOSION", texto: "Explosión (abrir)", icono: "fa-box-open" },
-				{ valor: "IMPLOSION", texto: "Implosión (armar)", icono: "fa-box" }
-			]
+			errorCantidad: ""
 		}),
 		created() {
 			this.url   = "inv/conversion"
@@ -150,11 +149,17 @@
 			this.autoBuscar = false
 
 			this.fbase = {
-				sentido: this.fijo?.sentido ?? EXPLOSION,
+				accion: ABRIR,
 				producto_id: this.fijo ? String(this.fijo.producto_id) : null,
-				producto_presentacion_id: this.fijo ? String(this.fijo.producto_presentacion_id) : null,
+				producto_presentacion_id: this.fijo?.producto_presentacion_id ? String(this.fijo.producto_presentacion_id) : null,
 				cantidad: 1,
 				observacion: ""
+			}
+		},
+		mounted() {
+			// Al abrir la unidad desde el punto de venta con una sola presentación más pequeña, ya va elegida
+			if (this.fijo && !this.fijo.producto_presentacion_id && this.presentaciones.length === 1) {
+				this.form.producto_presentacion_id = String(this.presentaciones[0].producto_presentacion_id)
 			}
 		},
 		methods: {
@@ -169,9 +174,12 @@
 				if (cantidad > this.maximo) {
 					this.errorCantidad = this.maximo > 0
 						? `Solo alcanza para ${formatoCantidad(this.maximo)}.`
-						: (this.explosion ? "No hay existencia de esta presentación." : "No hay unidades sueltas suficientes.")
+						: (this.abrir ? `No hay existencia de ${this.grande.nombre}.` : `No hay ${this.pequena.nombre} suficientes.`)
 					return
 				}
+
+				// La API sigue el sentido de la presentación: explosión sale de ella, implosión entra a ella
+				this.form.sentido = this.abrir !== this.menor ? "EXPLOSION" : "IMPLOSION"
 
 				this.guardar()
 			},
@@ -179,19 +187,30 @@
 				this.$refs.cantidad?.focus()
 				this.$refs.cantidad?.select()
 			},
-			formatoCantidad
+			formatoCantidad,
+			equivalencia
 		},
 		computed: {
-			explosion() {
-				return this.form.sentido === EXPLOSION
+			abrir() {
+				return this.form.accion === ABRIR
+			},
+			acciones() {
+				let grande = this.presentacion ? ` ${this.grande.nombre}` : ""
+
+				return [
+					{ valor: "abrir", texto: `Abrir${grande}`, icono: "fa-box-open" },
+					{ valor: "armar", texto: `Armar${grande}`, icono: "fa-box" }
+				]
 			},
 			producto() {
 				return this.productos.find(p => String(p.producto_id) === String(this.form.producto_id)) ?? null
 			},
-			// Para armar solo las activas; para abrir, también las inactivas que tienen existencia
+			// Activas o con existencia (una inactiva solo sirve para sacar lo que le queda).
+			// Abriendo la unidad desde el punto de venta: solo las más pequeñas que ella
 			presentaciones() {
 				return (this.producto?.presentaciones ?? []).filter(pre =>
-					Number(pre.activo) === 1 || (this.explosion && Number(pre.existencia) > 0)
+					(Number(pre.activo) === 1 || Number(pre.existencia) > 0) &&
+					(!this.fijo || this.fijo.producto_presentacion_id || Number(pre.factor) < 1)
 				)
 			},
 			presentacion() {
@@ -200,40 +219,57 @@
 			factor() {
 				return Number(this.presentacion?.factor ?? 0)
 			},
-			existenciaPresentacion() {
-				return Number(this.presentacion?.existencia ?? 0)
+			// La presentación es más pequeña que la unidad (1 Quintal = 100 Libras)
+			menor() {
+				return this.factor > 0 && this.factor < 1
 			},
-			existenciaUnidad() {
-				return Number(this.producto?.existencia ?? 0)
+			unidad() {
+				return {
+					nombre: this.producto?.nunidad ?? "",
+					existencia: Number(this.producto?.existencia ?? 0)
+				}
 			},
-			// Presentaciones enteras que se pueden abrir o armar con la existencia actual
+			pre() {
+				return {
+					nombre: this.presentacion?.nombre ?? "",
+					existencia: Number(this.presentacion?.existencia ?? 0)
+				}
+			},
+			grande() {
+				return this.menor ? this.unidad : this.pre
+			},
+			pequena() {
+				return this.menor ? this.pre : this.unidad
+			},
+			// Cuántas pequeñas trae una grande
+			porGrande() {
+				return this.menor ? Math.round(1 / this.factor) : this.factor
+			},
+			// Medidas grandes enteras que se pueden abrir o armar con la existencia actual
 			maximo() {
 				if (!this.presentacion || this.factor <= 0) {
 					return 0
 				}
 
-				let max = this.explosion
-					? Math.floor(this.existenciaPresentacion + 1e-9)
-					: Math.floor(this.existenciaUnidad / this.factor + 1e-9)
+				let max = this.abrir
+					? Math.floor(this.grande.existencia + 1e-9)
+					: Math.floor(this.pequena.existencia / this.porGrande + 1e-9)
 
 				return this.tope === null ? max : Math.min(max, Math.floor(this.tope))
 			},
-			unidades() {
-				return Math.round(Number(this.form.cantidad || 0) * this.factor * 100) / 100
-			},
 			lados() {
 				let cantidad = Number(this.form.cantidad || 0)
-				let caja = {
-					nombre: this.presentacion.nombre,
+				let grande = {
+					nombre: this.grande.nombre,
 					cantidad,
-					antes: this.existenciaPresentacion
+					antes: this.grande.existencia
 				}
-				let unidad = {
-					nombre: this.producto.nunidad,
-					cantidad: this.unidades,
-					antes: this.existenciaUnidad
+				let pequena = {
+					nombre: this.pequena.nombre,
+					cantidad: Math.round(cantidad * this.porGrande * 100) / 100,
+					antes: this.pequena.existencia
 				}
-				let [sale, entra] = this.explosion ? [caja, unidad] : [unidad, caja]
+				let [sale, entra] = this.abrir ? [grande, pequena] : [pequena, grande]
 
 				return [
 					{
@@ -256,17 +292,12 @@
 			}
 		},
 		watch: {
-			// Otro producto o sentido: la presentación elegida puede dejar de valer
+			// Otro producto: la presentación elegida deja de valer
 			"form.producto_id"() {
 				if (!this.fijo) {
 					this.form.producto_presentacion_id = this.presentaciones.length === 1
 						? String(this.presentaciones[0].producto_presentacion_id)
 						: null
-				}
-			},
-			"form.sentido"() {
-				if (!this.fijo && !this.presentacion) {
-					this.form.producto_presentacion_id = null
 				}
 			}
 		}

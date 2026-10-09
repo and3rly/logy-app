@@ -54,6 +54,18 @@ class Producto_model extends Centro_model {
 		return $tmp->num_rows() > 0;
 	}
 
+	# Tiene existencia en alguna sucursal (en la unidad o en una presentación): la unidad de medida ya no cambia
+	public function tieneExistencia()
+	{
+		$tmp = $this->db
+		->where("producto_id", $this->getPK())
+		->where("activo", 1)
+		->where("cantidad <>", 0)
+		->count_all_results("stock");
+
+		return $tmp > 0;
+	}
+
 	/**
 	 * Siguiente código de la empresa con la abreviatura de los parámetros, ej. PRD-000001.
 	 * Toma el mayor número ya usado con esa abreviatura, así no choca con códigos anteriores.
